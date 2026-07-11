@@ -226,7 +226,7 @@ async def browser_go_back() -> list[types.TextContent]:
 
 
 # =============================================================================
-# 4. browser_go_forward
+# 6. browser_go_forward
 # =============================================================================
 @app.tool(
     name="browser_go_forward",
@@ -246,7 +246,7 @@ async def browser_go_forward() -> list[types.TextContent]:
 
 
 # =============================================================================
-# 5. browser_reload
+# 7. browser_reload
 # =============================================================================
 @app.tool(
     name="browser_reload",
@@ -266,7 +266,48 @@ async def browser_reload() -> list[types.TextContent]:
 
 
 # =============================================================================
-# 6. browser_click
+# 8. browser_scroll
+# =============================================================================
+@app.tool(
+    name="browser_scroll",
+    description="Rola a página ou um elemento container em uma direção (up, down, left, right).",
+    schema={
+        "type": "object",
+        "properties": {
+            "direction": {
+                "type": "string",
+                "enum": ["up", "down", "left", "right"],
+                "description": "Direção do scroll",
+            },
+            "amount": {
+                "type": "integer",
+                "default": 300,
+                "description": "Quantidade em pixels (default: 300)",
+            },
+            "selector": {
+                "type": "string",
+                "description": "Seletor CSS opcional para scroll em container específico (ex: div com overflow)",
+            },
+        },
+        "required": ["direction"],
+    },
+)
+async def browser_scroll(
+    direction: str, amount: int = 300, selector: str | None = None
+) -> list[types.TextContent]:
+    """Rola a página ou um container em uma direção."""
+    start = time.time()
+    try:
+        result = await browser_manager.scroll(direction, amount, selector)
+        _log_call("browser_scroll", start)
+        return [types.TextContent(type="text", text=result)]
+    except Exception as e:
+        _log_call("browser_scroll", start)
+        return [types.TextContent(type="text", text=_format_error(e))]
+
+
+# =============================================================================
+# 9. browser_click
 # =============================================================================
 @app.tool(
     name="browser_click",
@@ -312,7 +353,7 @@ async def browser_click(selector: str, by: str = "css") -> list[types.TextConten
 
 
 # =============================================================================
-# 7. browser_type
+# 10. browser_type
 # =============================================================================
 @app.tool(
     name="browser_type",
@@ -367,7 +408,7 @@ async def browser_type(
 
 
 # =============================================================================
-# 8. browser_select_option
+# 11. browser_select_option
 # =============================================================================
 @app.tool(
     name="browser_select_option",
@@ -402,7 +443,7 @@ async def browser_select_option(
 
 
 # =============================================================================
-# 9. browser_hover
+# 12. browser_hover
 # =============================================================================
 @app.tool(
     name="browser_hover",
@@ -445,7 +486,7 @@ async def browser_hover(selector: str, by: str = "css") -> list[types.TextConten
 
 
 # =============================================================================
-# 10. browser_accessibility_tree
+# 13. browser_accessibility_tree
 # =============================================================================
 @app.tool(
     name="browser_accessibility_tree",
@@ -483,7 +524,7 @@ async def browser_accessibility_tree() -> list[types.TextContent]:
 
 
 # =============================================================================
-# 11. browser_press_key
+# 14. browser_press_key
 # =============================================================================
 @app.tool(
     name="browser_press_key",
@@ -518,7 +559,7 @@ async def browser_press_key(
 
 
 # =============================================================================
-# 12. browser_upload_file
+# 15. browser_upload_file
 # =============================================================================
 @app.tool(
     name="browser_upload_file",
@@ -553,7 +594,7 @@ async def browser_upload_file(
 
 
 # =============================================================================
-# 13. browser_get_content
+# 16. browser_get_content
 # =============================================================================
 @app.tool(
     name="browser_get_content",
@@ -589,7 +630,7 @@ async def browser_get_content(
 
 
 # =============================================================================
-# 14. browser_execute_javascript
+# 17. browser_execute_javascript
 # =============================================================================
 @app.tool(
     name="browser_execute_javascript",
@@ -624,7 +665,7 @@ async def browser_execute_javascript(code: str) -> list[types.TextContent]:
 
 
 # =============================================================================
-# 15. browser_get_attributes
+# 18. browser_get_attributes
 # =============================================================================
 @app.tool(
     name="browser_get_attributes",
@@ -659,7 +700,7 @@ async def browser_get_attributes(
 
 
 # =============================================================================
-# 16. browser_screenshot
+# 19. browser_screenshot
 # =============================================================================
 @app.tool(
     name="browser_screenshot",
@@ -695,7 +736,7 @@ async def browser_screenshot(
 
 
 # =============================================================================
-# 17. browser_network_start
+# 20. browser_network_start
 # =============================================================================
 @app.tool(
     name="browser_network_start",
@@ -716,7 +757,7 @@ async def browser_network_start() -> list[types.TextContent]:
 
 
 # =============================================================================
-# 18. browser_network_stop
+# 21. browser_network_stop
 # =============================================================================
 @app.tool(
     name="browser_network_stop",
@@ -736,7 +777,7 @@ async def browser_network_stop() -> list[types.TextContent]:
 
 
 # =============================================================================
-# 19. browser_network_list
+# 22. browser_network_list
 # =============================================================================
 @app.tool(
     name="browser_network_list",
@@ -776,7 +817,7 @@ async def browser_network_list(
 
 
 # =============================================================================
-# 20. browser_network_clear
+# 23. browser_network_clear
 # =============================================================================
 @app.tool(
     name="browser_network_clear",
@@ -796,7 +837,7 @@ async def browser_network_clear() -> list[types.TextContent]:
 
 
 # =============================================================================
-# 21. browser_get_network_log
+# 24. browser_get_network_log
 # =============================================================================
 @app.tool(
     name="browser_get_network_log",
@@ -831,7 +872,7 @@ async def browser_get_network_log(
 
 
 # =============================================================================
-# 22. browser_export_har
+# 25. browser_export_har
 # =============================================================================
 @app.tool(
     name="browser_export_har",
@@ -860,7 +901,7 @@ async def browser_export_har(path: str) -> list[types.TextContent]:
 
 
 # =============================================================================
-# 23. browser_manage_session
+# 26. browser_manage_session
 # =============================================================================
 @app.tool(
     name="browser_manage_session",
@@ -901,7 +942,7 @@ async def browser_manage_session(
 
 
 # =============================================================================
-# 24. browser_wait
+# 27. browser_wait
 # =============================================================================
 @app.tool(
     name="browser_wait",
@@ -943,7 +984,7 @@ async def browser_wait(
 
 
 # =============================================================================
-# 24b. browser_get_url
+# 28. browser_get_url
 # =============================================================================
 @app.tool(
     name="browser_get_url",
@@ -964,7 +1005,7 @@ async def browser_get_url() -> list[types.TextContent]:
 
 
 # =============================================================================
-# 24c. browser_get_title
+# 29. browser_get_title
 # =============================================================================
 @app.tool(
     name="browser_get_title",
@@ -985,7 +1026,7 @@ async def browser_get_title() -> list[types.TextContent]:
 
 
 # =============================================================================
-# 25. browser_agent_task
+# 30. browser_agent_task
 # =============================================================================
 @app.tool(
     name="browser_agent_task",
@@ -1070,7 +1111,7 @@ async def browser_agent_task(
 
 
 # =============================================================================
-# 26. browser_extension_get_network_log
+# 31. browser_extension_get_network_log
 # =============================================================================
 @app.tool(
     name="browser_extension_get_network_log",
@@ -1106,7 +1147,7 @@ async def browser_extension_get_network_log(
 
 
 # =============================================================================
-# 27. browser_extension_get_dom_snapshot
+# 32. browser_extension_get_dom_snapshot
 # =============================================================================
 @app.tool(
     name="browser_extension_get_dom_snapshot",
@@ -1238,3 +1279,27 @@ async def browser_set_security_level(level: str = "blue") -> list[types.TextCont
     except Exception:
         _log_call("browser_set_security_level", start)
         raise
+
+
+@app.tool(
+    name="browser_download",
+    description="Baixa um arquivo de uma URL usando os cookies da sessão atual e retorna o caminho absoluto do arquivo salvo.",
+    schema={
+        "type": "object",
+        "properties": {
+            "url": {"type": "string", "description": "URL do arquivo a baixar"},
+            "filename": {"type": "string", "description": "Nome opcional do arquivo de destino"},
+        },
+        "required": ["url"],
+    },
+)
+async def browser_download(url: str, filename: str | None = None) -> list[types.TextContent]:
+    """Baixa um arquivo de uma URL."""
+    start = time.time()
+    try:
+        result = await browser_manager.download(url, filename)
+        _log_call("browser_download", start)
+        return [types.TextContent(type="text", text=result)]
+    except Exception as e:
+        _log_call("browser_download", start)
+        return [types.TextContent(type="text", text=_format_error(e))]

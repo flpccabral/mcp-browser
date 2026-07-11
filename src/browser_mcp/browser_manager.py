@@ -3,10 +3,12 @@
 import asyncio
 import json
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Optional, cast
+from urllib.parse import unquote, urlparse
 
 from playwright.async_api import (
     Browser,
@@ -615,6 +617,45 @@ class BrowserManager:
         await self._page.reload(wait_until="networkidle", timeout=_TIMEOUT)
         return "Página recarregada"
 
+    async def scroll(self, direction: str, amount: int = 300, selector: str | None = None) -> str:
+        if self._in_extension_mode():
+            return await self._extension_dispatch("scroll", {
+                "direction": direction,
+                "amount": amount,
+                "selector": selector,
+            })
+        if not self._page:
+            raise RuntimeError("Nenhuma página ativa")
+
+        deltas = {
+            "up": (0, -amount),
+            "down": (0, amount),
+            "left": (-amount, 0),
+            "right": (amount, 0),
+        }
+        if direction not in deltas:
+            raise ValueError(f"Direção inválida: {direction!r}. Use up, down, left ou right.")
+        dx, dy = deltas[direction]
+
+        result = await self._page.evaluate(
+            """([selector, dx, dy]) => {
+                const target = selector ? document.querySelector(selector) : null;
+                if (selector && !target) {
+                    return { error: 'Elemento não encontrado: ' + selector };
+                }
+                const el = target || document.scrollingElement || document.documentElement;
+                el.scrollBy({ left: dx, top: dy, behavior: 'instant' });
+                return {
+                    scrollX: target ? el.scrollLeft : window.scrollX,
+                    scrollY: target ? el.scrollTop : window.scrollY,
+                };
+            }""",
+            [selector, dx, dy],
+        )
+        if result.get("error"):
+            raise RuntimeError(result["error"])
+        return json.dumps({"direction": direction, "amount": amount, "selector": selector, **result})
+
     async def click(self, selector: str, by: str = "css") -> str:
         """Clica em um elemento com fallback inteligente.
 
@@ -858,6 +899,46 @@ class BrowserManager:
             os.close(fd)
             await self._page.screenshot(path=tmp_path, full_page=full_page)
             return str(Path(tmp_path).absolute())
+
+    async def download(self, url: str, filename: str | None = None) -> str:
+        if self._in_extension_mode():
+            return await self._extension_dispatch("download", {"url": url, "filename": filename})
+        if not self._page:
+            raise RuntimeError("Nenhuma página ativa")
+
+        download_dir = Path(
+            os.environ.get(
+                "BROWSER_MCP_DOWNLOAD_DIR",
+                str(Path(tempfile.gettempdir()) / "browser_mcp_downloads"),
+            )
+        )
+        download_dir.mkdir(parents=True, exist_ok=True)
+
+        # APIRequestContext compartilha cookies com o contexto do navegador
+        response = await self._page.context.request.get(url)
+        if not response.ok:
+            raise RuntimeError(f"Download falhou: HTTP {response.status} para {url}")
+
+        if not filename:
+            cd = response.headers.get("content-disposition", "")
+            match = re.search(r"filename\*?=(?:UTF-8'')?\"?([^\";]+)\"?", cd, re.IGNORECASE)
+            if match:
+                filename = unquote(match.group(1))
+            else:
+                filename = os.path.basename(urlparse(url).path) or "download.bin"
+        # evita path traversal via filename vindo do agente ou do servidor
+        filename = os.path.basename(filename)
+
+        base = Path(filename)
+        dest = download_dir / filename
+        counter = 1
+        while dest.exists():
+            dest = download_dir / f"{base.stem}_{counter}{base.suffix}"
+            counter += 1
+
+        body = await response.body()
+        dest.write_bytes(body)
+        return json.dumps({"path": str(dest.resolve()), "size": len(body), "url": url})
 
     async def manage_session(self, action: str, **kwargs: Any) -> str:
         if self._in_extension_mode():

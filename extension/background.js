@@ -246,6 +246,37 @@
           result = result[0]?.result;
           break;
         }
+        case 'download': {
+          const downloadId = await chrome.downloads.download({
+            url: params.url,
+            filename: params.filename || undefined,
+            conflictAction: 'uniquify',
+          });
+          result = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              chrome.downloads.onChanged.removeListener(listener);
+              reject(new Error('Timeout no download (120s)'));
+            }, 120000);
+            const listener = (delta) => {
+              if (delta.id !== downloadId) return;
+              if (delta.state?.current === 'complete') {
+                clearTimeout(timeout);
+                chrome.downloads.onChanged.removeListener(listener);
+                chrome.downloads.search({ id: downloadId }, (items) => {
+                  resolve({ path: items[0]?.filename, url: params.url });
+                });
+              } else if (delta.state?.current === 'interrupted') {
+                clearTimeout(timeout);
+                chrome.downloads.onChanged.removeListener(listener);
+                chrome.downloads.search({ id: downloadId }, (items) => {
+                  reject(new Error(`Download interrompido: ${items[0]?.error || 'desconhecido'}`));
+                });
+              }
+            };
+            chrome.downloads.onChanged.addListener(listener);
+          });
+          break;
+        }
         case 'type': {
           const tab = await getActiveTab();
           result = await chrome.scripting.executeScript({
@@ -408,6 +439,37 @@
           const tab = await getActiveTab();
           await chrome.tabs.reload(tab.id);
           result = { action: 'reload' };
+          break;
+        }
+        case 'scroll': {
+          const tab = await getActiveTab();
+          const exec = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: (direction, amount, selector) => {
+              const deltas = {
+                up: [0, -amount],
+                down: [0, amount],
+                left: [-amount, 0],
+                right: [amount, 0],
+              };
+              const [dx, dy] = deltas[direction];
+              const target = selector ? document.querySelector(selector) : null;
+              if (selector && !target) {
+                return { error: 'Elemento não encontrado: ' + selector };
+              }
+              const el = target || document.scrollingElement || document.documentElement;
+              el.scrollBy({ left: dx, top: dy, behavior: 'instant' });
+              return {
+                direction,
+                amount,
+                selector,
+                scrollX: target ? el.scrollLeft : window.scrollX,
+                scrollY: target ? el.scrollTop : window.scrollY,
+              };
+            },
+            args: [params.direction, params.amount ?? 300, params.selector || null],
+          });
+          result = exec[0]?.result;
           break;
         }
         case 'get_visible_text': {

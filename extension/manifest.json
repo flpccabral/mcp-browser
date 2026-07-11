@@ -9,7 +9,8 @@
     "storage",
     "scripting",
     "alarms",
-    "debugger"
+    "debugger",
+    "downloads"
   ],
   "host_permissions": [
     "<all_urls>"
