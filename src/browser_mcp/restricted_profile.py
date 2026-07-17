@@ -39,6 +39,8 @@ def _is_restricted_mode() -> bool:
 ALLOWED_HOSTS: set[str] = {
     "gestordepedidos.ifood.com.br",
     "portal.ifood.com.br",
+    "partners-auth.ifood.com.br",
+    "developer.ifood.com.br",
 }
 
 
@@ -75,6 +77,8 @@ ALLOWED_TOOLS: set[str] = {
     "browser_navigate",
     "browser_get_content",
     "browser_execute_javascript",
+    "browser_type",
+    "browser_click",
 }
 
 #: Tools that are always allowed (no domain restriction needed).

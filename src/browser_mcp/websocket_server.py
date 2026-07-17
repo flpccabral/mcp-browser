@@ -43,6 +43,8 @@ except ImportError:
     HAS_WEBSOCKETS = False
     WebSocketServerProtocol = Any
 
+from browser_mcp.restricted_profile import RestrictedProfile
+
 # Tamanho máximo de payload para evitar ataques de exaustão de memória (64 MiB)
 MAX_PAYLOAD_SIZE = 64 * 1024 * 1024
 TOKEN_PATH = Path.home() / ".mcp_browser_token"
@@ -69,7 +71,22 @@ class WebSocketServer:
     """Servidor WebSocket que faz ponte entre MCP Server e extensão Chrome."""
 
     def __init__(self, host: str = "localhost", port: int = 8765):
-        self.host = host
+        # In restricted mode, force loopback binding
+        if RestrictedProfile.is_active():
+            self.host = "127.0.0.1"
+            if host != "localhost" and host != "127.0.0.1":
+                print(
+                    f"[WS-SERVER] WARNING: host='{host}' ignored in restricted mode. "
+                    f"Forcing 127.0.0.1 (loopback only).",
+                    file=sys.stderr,
+                )
+            # Run startup security checks
+            ok, msg = RestrictedProfile.check_startup_conditions()
+            if not ok:
+                print(f"[WS-SERVER] FATAL: {msg}", file=sys.stderr)
+                sys.exit(1)
+        else:
+            self.host = host
         self.port = port
         self._clients: set[WebSocketServerProtocol] = set()
         self._server: Any | None = None
@@ -204,7 +221,25 @@ class WebSocketServer:
                         headers[k.strip().lower()] = v.strip()
 
                 origin = headers.get("origin", "")
-                if origin and not origin.startswith("chrome-extension://"):
+                # In restricted mode, require chrome-extension origin (no empty origins)
+                if RestrictedProfile.is_active():
+                    if not origin:
+                        writer.write(
+                            b"HTTP/1.1 403 Forbidden\r\nContent-Type: text/plain\r\n\r\nOrigin required in restricted mode.\r\n"
+                        )
+                        await writer.drain()
+                        writer.close()
+                        await writer.wait_closed()
+                        return
+                    if not origin.startswith("chrome-extension://"):
+                        writer.write(
+                            b"HTTP/1.1 403 Forbidden\r\nContent-Type: text/plain\r\n\r\nOnly chrome-extension origins allowed in restricted mode.\r\n"
+                        )
+                        await writer.drain()
+                        writer.close()
+                        await writer.wait_closed()
+                        return
+                elif origin and not origin.startswith("chrome-extension://"):
                     writer.write(b"HTTP/1.1 403 Forbidden\r\n\r\n")
                     await writer.drain()
                     writer.close()
@@ -230,7 +265,16 @@ class WebSocketServer:
                             provided = (qs.get("token") or [None])[0]
 
                 if not provided or not hmac.compare_digest(provided, self._token):
-                    writer.write(b"HTTP/1.1 401 Unauthorized\r\n\r\n")
+                    # In restricted mode, token is mandatory with explicit message
+                    if RestrictedProfile.is_active() and not provided:
+                        writer.write(
+                            b"HTTP/1.1 401 Unauthorized\r\n"
+                            b"Content-Type: text/plain\r\n\r\n"
+                            b"Token required in restricted mode. "
+                            b"Provide via Authorization: Bearer <token> or ?token=<token> query param.\r\n"
+                        )
+                    else:
+                        writer.write(b"HTTP/1.1 401 Unauthorized\r\n\r\n")
                     await writer.drain()
                     writer.close()
                     await writer.wait_closed()
@@ -380,6 +424,11 @@ class WebSocketServer:
     async def _handle_message(self, msg: dict[str, Any], ws: Any) -> None:
         """Processa uma mensagem recebida de um cliente WebSocket."""
         msg_type = msg.get("type")
+
+        # In restricted mode, sanitize log output (no full code, no token, no DOM)
+        if RestrictedProfile.is_active():
+            msg = RestrictedProfile.sanitize_log_dict(msg)
+
         print(f"[WS-SERVER] Recebido: {msg_type}", file=sys.stderr)
 
         if msg_type == "hello":

@@ -45,6 +45,9 @@ class TestDomainAllowlist:
         """Allowed domain with HTTPS passes."""
         assert is_domain_allowed("https://gestordepedidos.ifood.com.br/orders") is True
         assert is_domain_allowed("https://portal.ifood.com.br/dashboard") is True
+        # Hosts adicionados na expansão do piloto (2026-07-13)
+        assert is_domain_allowed("https://partners-auth.ifood.com.br/login") is True
+        assert is_domain_allowed("https://developer.ifood.com.br/docs") is True
 
     def test_http_rejected(self):
         """HTTP scheme is rejected even for allowed hosts."""
@@ -60,12 +63,16 @@ class TestDomainAllowlist:
         """Similar but different domain is rejected (typosquatting protection)."""
         assert is_domain_allowed("https://gestordepedidos.ifood.com.br.evil.com") is False
         assert is_domain_allowed("https://portal.ifood.com.br.hacker.net") is False
+        assert is_domain_allowed("https://partners-auth.ifood.com.br.evil.com") is False
+        assert is_domain_allowed("https://developer.ifood.com.br.phish.io") is False
 
     def test_unauthorized_subdomain_rejected(self):
         """Subdomain of allowed host is rejected (exact match only)."""
         assert is_domain_allowed("https://api.portal.ifood.com.br") is False
         assert is_domain_allowed("https://admin.gestordepedidos.ifood.com.br") is False
         assert is_domain_allowed("https://sub.portal.ifood.com.br/data") is False
+        assert is_domain_allowed("https://api.partners-auth.ifood.com.br") is False
+        assert is_domain_allowed("https://staging.developer.ifood.com.br") is False
 
     def test_unauthorized_domain_rejected(self):
         """Completely unauthorized domain is rejected."""
@@ -102,13 +109,18 @@ class TestToolAllowlist:
         for tool in ALLOWED_TOOLS:
             assert is_tool_allowed(tool) is True
 
+    def test_interaction_tools_allowed(self):
+        """browser_type e browser_click entraram na allowlist (expansão do piloto, 2026-07-13)."""
+        assert is_tool_allowed("browser_type") is True
+        assert is_tool_allowed("browser_click") is True
+
     def test_unauthorized_tool_rejected(self):
         """Tools outside the allowlist are rejected."""
-        assert is_tool_allowed("browser_click") is False
         assert is_tool_allowed("browser_screenshot") is False
-        assert is_tool_allowed("browser_type") is False
         assert is_tool_allowed("browser_network_start") is False
         assert is_tool_allowed("browser_manage_session") is False
+        assert is_tool_allowed("browser_download") is False
+        assert is_tool_allowed("browser_agent_task") is False
 
     def test_non_existent_tool_rejected(self):
         """Non-existent tool is rejected."""
@@ -178,10 +190,10 @@ class TestValidateToolCall:
     def test_disallowed_tool_rejected_in_restricted_mode(self, monkeypatch):
         """Restricted mode: tool outside allowlist is rejected."""
         monkeypatch.setenv("IFOOD_RESTRICTED_MODE", "1")
-        allowed, reason = RestrictedProfile.validate_tool_call("browser_click", {"selector": "a"})
+        allowed, reason = RestrictedProfile.validate_tool_call("browser_screenshot", {})
         assert allowed is False
         assert "REJECTED" in reason
-        assert "browser_click" in reason
+        assert "browser_screenshot" in reason
 
     def test_navigate_http_rejected(self, monkeypatch):
         """Restricted mode: HTTP URL is rejected."""
