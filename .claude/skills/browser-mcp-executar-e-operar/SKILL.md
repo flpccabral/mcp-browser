@@ -262,15 +262,13 @@ Muda o comportamento **operacional** do sistema
   (restricted_profile.py:122-152, 294-307). Fix: `chmod 600 ~/.mcp_browser_token`.
 - **Origin obrigatório:** conexão sem header `Origin`, ou com origin que não
   seja `chrome-extension://`, recebe 403 (no modo normal, origin vazio passa).
-- **Tools permitidas (5 no working tree):** `browser_navigate`,
+- **Tools permitidas (5, commitado):** `browser_navigate`,
   `browser_get_content`, `browser_execute_javascript`, `browser_type`,
-  `browser_click` (restricted_profile.py:76-82). Navegação só HTTPS para
-  4 hosts exatos: `gestordepedidos.ifood.com.br`, `portal.ifood.com.br`,
-  `partners-auth.ifood.com.br`, `developer.ifood.com.br`.
-  **NOTA WIP:** HEAD (`4c534b3`) ainda tem 3 tools / 2 hosts; a expansão
-  (type/click + 2 hosts) é WIP intencional não commitado. Valores exatos e
-  estado canônico: [[browser-mcp-perfil-restrito]] — re-verifique lá antes de
-  citar.
+  `browser_click` (restricted_profile.py:75-81). Navegação só HTTPS para
+  3 hosts exatos: `portal.ifood.com.br`, `partners-auth.ifood.com.br`,
+  `developer.ifood.com.br` (2026-07-17; `gestordepedidos.ifood.com.br` foi
+  removido da allowlist). Valores exatos e estado canônico:
+  [[browser-mcp-perfil-restrito]] — re-verifique lá antes de citar.
 - **Todo JS rejeitado por default:** `ALLOWED_SCRIPT_HASHES` está vazio
   (restricted_profile.py:97), e allowlist vazia = rejeita tudo
   (secure-by-default, restricted_profile.py:105-112). Para aprovar um script,

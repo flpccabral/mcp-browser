@@ -185,11 +185,12 @@ nomeado e permanente.
 
 | Vetor de ataque | Payload literal | Teste (linha) |
 |---|---|---|
-| Look-alike / typosquatting | `https://portal.ifood.com.br.hacker.net` e `https://gestordepedidos.ifood.com.br.evil.com` | `test_similar_domain_rejected`, linhas 61-64 |
-| Subdomínio não autorizado (match exato apenas) | `https://api.portal.ifood.com.br`, `https://admin.gestordepedidos.ifood.com.br`, `https://sub.portal.ifood.com.br/data` | `test_unauthorized_subdomain_rejected`, linhas 66-70 |
-| Downgrade para HTTP | `http://gestordepedidos.ifood.com.br/` mesmo sendo host permitido | `test_http_rejected`, linhas 51-54 |
+| Look-alike / typosquatting | `https://portal.ifood.com.br.hacker.net` e `https://partners-auth.ifood.com.br.evil.com` | `test_similar_domain_rejected`, linhas 61-65 |
+| Subdomínio não autorizado (match exato apenas) | `https://api.portal.ifood.com.br`, `https://staging.developer.ifood.com.br` | `test_unauthorized_subdomain_rejected`, linhas 67-72 |
+| Downgrade para HTTP | `http://portal.ifood.com.br/` mesmo sendo host permitido | `test_http_rejected`, linhas 51-54 |
 | URL privilegiada do browser | `chrome://settings`, `chrome://version` | `test_chrome_url_rejected`, linhas 56-59 |
-| Domínio totalmente estranho | `https://google.com`, `https://evil.com` | `test_unauthorized_domain_rejected`, linhas 72-76 |
+| Domínio totalmente estranho | `https://google.com`, `https://evil.com` | `test_unauthorized_domain_rejected`, linhas 74-78 |
+| Host removido da allowlist | `https://gestordepedidos.ifood.com.br/` (permitido até 2026-07-17, depois removido do escopo) | `test_removed_host_rejected`, linhas 80-83 |
 | URL malformada / vazia | `not-a-url`, `""` | `test_malformed_url_rejected`, linhas 78-81 |
 | Script JS não registrado (hash) | qualquer código fora de `ALLOWED_SCRIPT_HASHES`; allowlist vazia rejeita TUDO (secure-by-default) | `test_script_rejected_when_allowlist_empty`, linhas 141-145 |
 | Token com permissões inseguras | arquivo `0644` (world-readable) | `test_insecure_permissions`, linhas 290-306 |

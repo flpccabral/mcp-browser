@@ -37,7 +37,6 @@ def _is_restricted_mode() -> bool:
 
 #: Domains the browser is allowed to navigate to in restricted mode.
 ALLOWED_HOSTS: set[str] = {
-    "gestordepedidos.ifood.com.br",
     "portal.ifood.com.br",
     "partners-auth.ifood.com.br",
     "developer.ifood.com.br",

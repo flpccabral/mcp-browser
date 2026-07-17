@@ -43,7 +43,6 @@ class TestDomainAllowlist:
 
     def test_allowed_https_domain(self):
         """Allowed domain with HTTPS passes."""
-        assert is_domain_allowed("https://gestordepedidos.ifood.com.br/orders") is True
         assert is_domain_allowed("https://portal.ifood.com.br/dashboard") is True
         # Hosts adicionados na expansão do piloto (2026-07-13)
         assert is_domain_allowed("https://partners-auth.ifood.com.br/login") is True
@@ -51,7 +50,7 @@ class TestDomainAllowlist:
 
     def test_http_rejected(self):
         """HTTP scheme is rejected even for allowed hosts."""
-        assert is_domain_allowed("http://gestordepedidos.ifood.com.br/") is False
+        assert is_domain_allowed("http://partners-auth.ifood.com.br/") is False
         assert is_domain_allowed("http://portal.ifood.com.br/") is False
 
     def test_chrome_url_rejected(self):
@@ -61,7 +60,6 @@ class TestDomainAllowlist:
 
     def test_similar_domain_rejected(self):
         """Similar but different domain is rejected (typosquatting protection)."""
-        assert is_domain_allowed("https://gestordepedidos.ifood.com.br.evil.com") is False
         assert is_domain_allowed("https://portal.ifood.com.br.hacker.net") is False
         assert is_domain_allowed("https://partners-auth.ifood.com.br.evil.com") is False
         assert is_domain_allowed("https://developer.ifood.com.br.phish.io") is False
@@ -69,7 +67,6 @@ class TestDomainAllowlist:
     def test_unauthorized_subdomain_rejected(self):
         """Subdomain of allowed host is rejected (exact match only)."""
         assert is_domain_allowed("https://api.portal.ifood.com.br") is False
-        assert is_domain_allowed("https://admin.gestordepedidos.ifood.com.br") is False
         assert is_domain_allowed("https://sub.portal.ifood.com.br/data") is False
         assert is_domain_allowed("https://api.partners-auth.ifood.com.br") is False
         assert is_domain_allowed("https://staging.developer.ifood.com.br") is False
@@ -80,6 +77,11 @@ class TestDomainAllowlist:
         assert is_domain_allowed("https://github.com") is False
         assert is_domain_allowed("https://evil.com") is False
 
+    def test_removed_host_rejected(self):
+        """gestordepedidos foi removido da allowlist (2026-07-17) e deve ser rejeitado."""
+        assert is_domain_allowed("https://gestordepedidos.ifood.com.br/") is False
+        assert is_domain_allowed("https://gestordepedidos.ifood.com.br/orders") is False
+
     def test_malformed_url_rejected(self):
         """Malformed or empty URLs are rejected."""
         assert is_domain_allowed("not-a-url") is False
@@ -88,7 +90,7 @@ class TestDomainAllowlist:
     def test_path_and_query_ignored_for_host(self):
         """Only hostname matters; paths and query strings don't affect validation."""
         assert is_domain_allowed("https://portal.ifood.com.br/api/orders?status=active") is True
-        assert is_domain_allowed("https://gestordepedidos.ifood.com.br/?token=test#section") is True
+        assert is_domain_allowed("https://partners-auth.ifood.com.br/?token=test#section") is True
 
     def test_port_in_url(self):
         """URLs with explicit ports are validated by hostname."""
@@ -199,7 +201,7 @@ class TestValidateToolCall:
         """Restricted mode: HTTP URL is rejected."""
         monkeypatch.setenv("IFOOD_RESTRICTED_MODE", "1")
         allowed, reason = RestrictedProfile.validate_tool_call(
-            "browser_navigate", {"url": "http://gestordepedidos.ifood.com.br/"}
+            "browser_navigate", {"url": "http://portal.ifood.com.br/"}
         )
         assert allowed is False
         assert "REJECTED" in reason

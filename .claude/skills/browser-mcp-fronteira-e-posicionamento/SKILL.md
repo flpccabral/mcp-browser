@@ -147,20 +147,19 @@ processo de publicação: `browser-mcp-controle-de-mudancas`.
   hosts `:39-44`, tools `:76`, hashes SHA-256 com rejeição por default
   `:101`/`:114-116`, loopback `:242`, ativação por `IFOOD_RESTRICTED_MODE=1`
   `:31`) + modo extensão (`src/browser_mcp/tools.py:181`,
-  `src/browser_mcp/websocket_server.py:220-265`) + 42 testes adversariais
-  (2 falhando hoje por WIP intencional — ver [[browser-mcp-perfil-restrito]]).
+  `src/browser_mcp/websocket_server.py:220-265`) + 44 testes adversariais
+  (todos passando em 2026-07-17 — ver [[browser-mcp-perfil-restrito]]).
 - **3 primeiros passos neste repo** (cada um relaxa/mexe num default de
   segurança → **todos passam pelo gate de [[browser-mcp-controle-de-mudancas]]**;
   mudança de segurança não entra sem o processo):
-  1. Popular `ALLOWED_SCRIPT_HASHES` (`restricted_profile.py:101`, hoje
-     vazio) com os scripts do fluxo Gestor de Pedidos, via
-     `compute_script_hash` (`:104`) — via gate de
+  1. Popular `ALLOWED_SCRIPT_HASHES` (hoje vazio) com os scripts do fluxo
+     do piloto nos hosts permitidos (portal do parceiro), via
+     `compute_script_hash` — via gate de
      [[browser-mcp-controle-de-mudancas]].
-  2. Commitar a integração WIP — `restricted_profile.py`, `tools.py` e
-     `websocket_server.py` estão modificados e não commitados na branch
-     `etapa-1-ifood-restricted-profile` (verificado 2026-07-17). O commit
-     desta expansão (hosts/tools) DEVE ressincronizar os 2 testes que hoje
-     falham e passar pelo gate de [[browser-mcp-controle-de-mudancas]].
+  2. ~~Commitar a integração~~ **FEITO em 2026-07-17** (commit `ed98aac`):
+     enforcement integrado em `tools.py`/`websocket_server.py`, testes
+     sincronizados (44 passando), allowlist ajustada ao escopo do piloto
+     (`gestordepedidos` removido).
   3. Teste E2E adversarial do modo restrito de ponta a ponta (não só
      unitário): servidor real + extensão real + tentativas hostis.
 - **Marco falsificável**: você tem um resultado quando **um fluxo real

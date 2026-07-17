@@ -7,7 +7,7 @@ description: >
   permissões do token file (0600), bind loopback 127.0.0.1, sanitização de logs,
   aprovar um script JS, adicionar um domínio permitido, ou verificar se o modo restrito
   está ativo. Cobre a semântica exata dos 6 controles, os runbooks de mudança e o
-  estado da integração WIP.
+  estado da integração no pipeline.
 ---
 
 # Perfil Restrito de Segurança (Piloto iFood)
@@ -16,10 +16,10 @@ Esta skill documenta a categoria de domínio mais crítica do projeto: o perfil 
 que limita o que um agente LLM pode fazer com o browser quando o servidor roda na
 máquina de um parceiro.
 
-**Fonte de verdade única do enforcement:** `src/browser_mcp/restricted_profile.py`
-(commitado). A integração nos pontos de chamada (`tools.py`, `websocket_server.py`)
-é **WIP não commitado** na branch `etapa-1-ifood-restricted-profile` — ver seção
-"Estado da integração" (fato datado de 2026-07-12/13).
+**Fonte de verdade única do enforcement:** `src/browser_mcp/restricted_profile.py`.
+A integração nos pontos de chamada (`tools.py`, `websocket_server.py`) está
+**commitada** desde 2026-07-17 (commit `ed98aac`, branch
+`etapa-1-ifood-restricted-profile`) — ver seção "Estado da integração".
 
 ## Quando NÃO usar esta skill
 
@@ -45,7 +45,7 @@ Cada controle existe contra um vetor específico:
 | Prompt injection manda o agente navegar para site malicioso / phishing look-alike | Allowlist de domínios com match EXATO de hostname |
 | Downgrade para HTTP (MITM na rede do parceiro) | HTTPS obrigatório |
 | Agente acessa `chrome://settings`, IPs internos, intranet | Match exato rejeita qualquer hostname fora da lista (e `chrome://` falha no check de scheme) |
-| Agente usa tools de alto risco (screenshot, sessão, rede) para exfiltrar/agir | Allowlist de tools (5 permitidas no working tree — ver "Os 6 controles" §2) |
+| Agente usa tools de alto risco (screenshot, sessão, rede) para exfiltrar/agir | Allowlist de tools (5 permitidas — ver "Os 6 controles" §2) |
 | Agente injeta JS arbitrário na página logada do parceiro | Allowlist de scripts por SHA-256 (vazia = tudo rejeitado) |
 | Outro processo/máquina da rede conecta no servidor WS | Bind forçado em 127.0.0.1 + origin `chrome-extension://` obrigatório + token obrigatório |
 | Outro usuário local lê o token | Permissões do token file (0600/0400) checadas no startup, senão o servidor recusa iniciar |
@@ -78,43 +78,42 @@ que retorna `(allowed: bool, reason: str)` — rejeições vêm com texto inicia
 - Hostname (via `urllib.parse.urlparse().hostname`) deve estar **exatamente** em
   `ALLOWED_HOSTS` (linha 66). Sem wildcard, sem sufixo, sem subdomínio.
 
-`ALLOWED_HOSTS` no **working tree** (`restricted_profile.py:39-44`), verificado
-2026-07-17 — **4 hosts**:
+`ALLOWED_HOSTS` (`restricted_profile.py:39-43`), verificado
+2026-07-17 — **3 hosts** (commitado; sem WIP pendente):
 
 ```python
 ALLOWED_HOSTS: set[str] = {
-    "gestordepedidos.ifood.com.br",
     "portal.ifood.com.br",
     "partners-auth.ifood.com.br",
     "developer.ifood.com.br",
 }
 ```
 
-**Estado divergente HEAD vs working tree** (expansão intencional do dono,
-2026-07-13, WIP não commitado): o commit em HEAD (`4c534b3`) ainda tem apenas
-**2 hosts** (`gestordepedidos`, `portal`). Os 2 hosts adicionais
-(`partners-auth`, `developer`) vivem só no working tree — re-verifique com
-`grep -A6 "ALLOWED_HOSTS" src/browser_mcp/restricted_profile.py` e
-`git diff HEAD -- src/browser_mcp/restricted_profile.py`.
+Histórico da allowlist: começou com 2 hosts (`gestordepedidos`, `portal`);
+em 2026-07-13 o dono adicionou `partners-auth` e `developer`; em 2026-07-17
+**`gestordepedidos.ifood.com.br` foi removido** (mudança de escopo do piloto),
+com teste explícito de que o host removido é rejeitado
+(`test_removed_host_rejected`). Re-verifique o estado atual com
+`grep -A5 "ALLOWED_HOSTS" src/browser_mcp/restricted_profile.py`.
 
 Consequências do match exato (todas cobertas por teste):
 
 | URL | Resultado | Teste |
 |---|---|---|
-| `https://portal.ifood.com.br/dashboard` | PERMITIDO | `test_restricted_profile.py:49` |
+| `https://portal.ifood.com.br/dashboard` | PERMITIDO | `test_restricted_profile.py:46` |
 | `http://portal.ifood.com.br/` | REJEITADO (HTTP) | `test_restricted_profile.py:54` |
-| `https://api.portal.ifood.com.br` | REJEITADO (subdomínio) | `test_restricted_profile.py:68` |
-| `https://portal.ifood.com.br.hacker.net` | REJEITADO (look-alike) | `test_restricted_profile.py:64` |
-| `https://gestordepedidos.ifood.com.br.evil.com` | REJEITADO (look-alike) | `test_restricted_profile.py:63` |
+| `https://api.portal.ifood.com.br` | REJEITADO (subdomínio) | `test_restricted_profile.py:69` |
+| `https://portal.ifood.com.br.hacker.net` | REJEITADO (look-alike) | `test_restricted_profile.py:63` |
+| `https://gestordepedidos.ifood.com.br/` | REJEITADO (host removido) | `test_restricted_profile.py:82` |
 | `chrome://settings` | REJEITADO | `test_restricted_profile.py:58` |
-| IPs, `evil.com`, URL malformada, vazia | REJEITADO | `test_restricted_profile.py:72-81` |
-| `https://portal.ifood.com.br:443/test` | PERMITIDO (porta não afeta hostname) | `test_restricted_profile.py:91` |
+| IPs, `evil.com`, URL malformada, vazia | REJEITADO | `test_restricted_profile.py:74-88` |
+| `https://portal.ifood.com.br:443/test` | PERMITIDO (porta não afeta hostname) | `test_restricted_profile.py:95` |
 
-Path e query string são ignorados na validação (`test_restricted_profile.py:83-86`).
+Path e query string são ignorados na validação (`test_restricted_profile.py:90-93`).
 
 ### 2. Allowlist de tools
 
-`ALLOWED_TOOLS` no **working tree** (`restricted_profile.py:76-82`) — **5 tools**:
+`ALLOWED_TOOLS` (`restricted_profile.py:75-81`) — **5 tools** (commitado):
 
 - `browser_navigate`
 - `browser_get_content`
@@ -122,16 +121,11 @@ Path e query string são ignorados na validação (`test_restricted_profile.py:8
 - `browser_type`
 - `browser_click`
 
-**Estado divergente HEAD vs working tree** (expansão intencional do dono,
-2026-07-13, WIP não commitado): HEAD (`4c534b3`) tem apenas **3** (`navigate`,
-`get_content`, `execute_javascript`); `browser_type` e `browser_click` foram
-adicionados só no working tree. **Dívida de sincronização declarada:** essa
-expansão fez 2 testes adversariais FALHAREM hoje —
-`test_unauthorized_tool_rejected` (`test_restricted_profile.py:106`) e
-`test_disallowed_tool_rejected_in_restricted_mode`
-(`test_restricted_profile.py:179`) — porque ambos assumiam que `type`/`click`
-estavam FORA da lista. Quem commitar a expansão DEVE atualizar esses testes
-(mudança de segurança → passa pelo gate de [[browser-mcp-controle-de-mudancas]]).
+Histórico: a lista original tinha 3 tools; `browser_type` e `browser_click`
+foram adicionados pelo dono em 2026-07-13 (expansão intencional do piloto) e
+commitados em `ed98aac` (2026-07-17) junto com os testes sincronizados —
+incluindo `test_interaction_tools_allowed`, que trava explicitamente a decisão
+de permitir as tools de interação.
 
 Qualquer outra tool (`browser_screenshot`, `browser_network_start`,
 `browser_manage_session`, ...) é rejeitada (`is_tool_allowed`, linhas 90-92).
@@ -156,13 +150,13 @@ Qualquer outra tool (`browser_screenshot`, `browser_network_start`,
 ### 4. Rede: loopback + origin + token
 
 - **Bind forçado 127.0.0.1**: `RestrictedProfile.get_bind_host()` retorna sempre
-  `"127.0.0.1"` (`restricted_profile.py:232-238`; teste `test_restricted_profile.py:352-354`).
-  O enforcement real no `WebSocketServer.__init__` é WIP (ver "Estado da integração").
-- **Origin `chrome-extension://` obrigatório**: no WIP, em modo restrito, origin vazio
+  `"127.0.0.1"`; o `WebSocketServer.__init__` aplica isso em modo restrito
+  (warning no stderr se o host pedido era outro).
+- **Origin `chrome-extension://` obrigatório**: em modo restrito, origin vazio
   → `403 Forbidden`; origin que não começa com `chrome-extension://` → `403`.
-  (No código commitado, origin vazio é tolerado.)
-- **Token obrigatório**: comparação com `hmac.compare_digest`; no WIP, ausência de
-  token em modo restrito gera `401` com mensagem explícita
+  (Fora do modo restrito, origin vazio é tolerado.)
+- **Token obrigatório**: comparação com `hmac.compare_digest`; em modo restrito,
+  ausência de token gera `401` com mensagem explícita
   (`Authorization: Bearer <token>` ou `?token=` na query).
 
 ### 5. Permissões do token file (gate de startup)
@@ -174,8 +168,8 @@ Qualquer outra tool (`browser_screenshot`, `browser_network_start`,
 - Modo POSIX deve ser exatamente `0o400` ou `0o600` (linhas 140-147). `0644` falha
   (teste `test_restricted_profile.py:290-306`).
 - Windows: check sempre passa (linhas 131-132).
-- `check_startup_conditions()` (linhas 293-307) roda isso no boot; se falhar,
-  **o servidor recusa iniciar** — no WIP, `websocket_server.py` faz
+- `check_startup_conditions()` roda isso no boot; se falhar,
+  **o servidor recusa iniciar** — `websocket_server.py` faz
   `sys.exit(1)` com `FATAL` no stderr.
 
 Correção padrão:
@@ -196,34 +190,24 @@ chmod 600 ~/.mcp_browser_token
 - Testes: `TestLogSanitization` (`test_restricted_profile.py:367-402`), incluindo
   dicts aninhados.
 
-## Estado da integração (verificado 2026-07-13)
+## Estado da integração (verificado 2026-07-17)
 
-- `src/browser_mcp/restricted_profile.py` está **commitado**
-  (commit `4c534b3`, branch `etapa-1-ifood-restricted-profile`).
-- A **integração** é **WIP não commitado** (`git status` mostra `M` em
-  `src/browser_mcp/tools.py` e `src/browser_mcp/websocket_server.py`). Para inspecionar:
+A integração está **commitada** (commit `ed98aac`, branch
+`etapa-1-ifood-restricted-profile`): setar `IFOOD_RESTRICTED_MODE=1` passou a
+ter efeito real em todo o pipeline.
 
-```bash
-git diff src/browser_mcp/tools.py src/browser_mcp/websocket_server.py
-```
-
-Conteúdo do WIP (lido do diff em 2026-07-13):
-
-| Arquivo | Mudança WIP |
+| Arquivo | Enforcement |
 |---|---|
 | `tools.py` | `ToolRegistry.call_tool` chama `RestrictedProfile.validate_tool_call(name, arguments)` ANTES do dispatch; se rejeitado, retorna `TextContent` com a razão `REJECTED: ...` sem tocar extensão/Playwright |
 | `websocket_server.py` (`__init__`) | Modo restrito: força `self.host = "127.0.0.1"` (warning se host pedido era outro) e roda `check_startup_conditions()`; falha → `FATAL` no stderr + `sys.exit(1)` |
 | `websocket_server.py` (handshake) | Modo restrito: origin vazio → 403; origin não-`chrome-extension://` → 403; token ausente → 401 com mensagem explicativa |
 | `websocket_server.py` (`_handle_message`) | Modo restrito: aplica `sanitize_log_dict` na mensagem antes do log |
 
-**Implicação prática**: sem esse WIP aplicado, setar `IFOOD_RESTRICTED_MODE=1` NÃO
-bloqueia nada — o módulo existe mas ninguém o chama. Não trate o modo restrito como
-ativo em produção até esse diff virar commit (ver "Proveniência e manutenção").
-
-**Observação sobre o WIP** (não corrigir sem processo — ver
-`browser-mcp-controle-de-mudancas`): em `_handle_message`, o dict sanitizado
+**Ponto fraco declarado** (não corrigir sem processo — ver
+[[browser-mcp-controle-de-mudancas]]): em `_handle_message`, o dict sanitizado
 substitui `msg` e segue para o processamento, não só para o log — payloads com chaves
-sensíveis podem chegar redigidos/truncados ao handler. Avaliar antes de commitar.
+sensíveis podem chegar redigidos/truncados ao handler. Comportamento herdado do
+commit `ed98aac`; avaliar em mudança futura.
 
 ## Runbooks
 
@@ -231,11 +215,10 @@ sensíveis podem chegar redigidos/truncados ao handler. Avaliar antes de commita
 
 1. Justifique por escrito (por que o piloto precisa; siga o gate de
    `browser-mcp-controle-de-mudancas`).
-2. Edite `ALLOWED_HOSTS` em `src/browser_mcp/restricted_profile.py:39-44` com o
+2. Edite `ALLOWED_HOSTS` em `src/browser_mcp/restricted_profile.py:39-43` com o
    hostname EXATO (sem scheme, sem path, minúsculas):
    ```python
    ALLOWED_HOSTS: set[str] = {
-       "gestordepedidos.ifood.com.br",
        "portal.ifood.com.br",
        "partners-auth.ifood.com.br",
        "developer.ifood.com.br",
@@ -296,18 +279,17 @@ print('evil.com bloqueado:', not ok)
 "
 # Esperado: ativo: True / browser_screenshot bloqueado: True / evil.com bloqueado: True
 # (browser_screenshot segue FORA da allowlist; browser_click/browser_type NÃO
-#  servem mais de exemplo — foram adicionados à lista no working tree.)
+#  servem de exemplo de bloqueio — estão na allowlist desde ed98aac.)
 
-# 3. A INTEGRAÇÃO está no código que roda? (enquanto for WIP, isto é essencial)
+# 3. A INTEGRAÇÃO está no código que roda? (sanidade)
 grep -n "RestrictedProfile" src/browser_mcp/tools.py src/browser_mcp/websocket_server.py
 # Sem hits em tools.py = o enforcement NÃO está ligado, mesmo com env var setado.
 ```
 
 Prova end-to-end: com o servidor rodando em modo restrito, chame `browser_screenshot`
 via MCP e confirme resposta `REJECTED: Tool 'browser_screenshot' is not in the
-restricted allowlist...` (formato definido em `restricted_profile.py:251-256`). Use uma
-tool que continue FORA da allowlist — `browser_click`/`browser_type` entraram nela no
-working tree.
+restricted allowlist...`. Use uma tool que continue FORA da allowlist —
+`browser_click`/`browser_type` estão DENTRO dela.
 
 ## Inegociáveis
 
@@ -323,12 +305,13 @@ working tree.
 
 ## Cobertura de testes
 
-`tests/test_restricted_profile.py` (440 linhas), 8 classes:
+`tests/test_restricted_profile.py` (446 linhas, 44 testes, todos passando em
+2026-07-17), 8 classes:
 
 | Classe (linha) | Cobre |
 |---|---|
 | `TestDomainAllowlist` (43) | HTTPS ok, HTTP/chrome:// rejeitados, look-alikes, subdomínios, domínio não autorizado, URL malformada, path/query ignorados, porta explícita |
-| `TestToolAllowlist` (98) | tools permitidas passam; tools de alto risco (screenshot/network/session) e tool inexistente rejeitados. **2 testes desta classe/pipeline falham hoje** (`test_unauthorized_tool_rejected`, `test_disallowed_tool_rejected_in_restricted_mode`) porque o working tree adicionou `type`/`click` à allowlist — dívida de sincronização declarada |
+| `TestToolAllowlist` | tools permitidas passam (incluindo `test_interaction_tools_allowed` para `type`/`click`); tools de alto risco (screenshot/network/session/download/agent_task) e tool inexistente rejeitados |
 | `TestJavaScriptAllowlist` (124) | hash determinístico (64 hex), allowlist vazia rejeita tudo, registro de hash permite, hash desconhecido rejeita |
 | `TestValidateToolCall` (167) | pipeline completo com env var: modo padrão passa tudo; restrito rejeita tool fora da lista, HTTP, domínio não autorizado, JS sem hash, args ausentes; permite domínio/hash aprovados e get_content |
 | `TestTokenPermissions` (272) | arquivo ausente falha; 0644 falha; 0600 e 0400 passam (skip no Windows) |
@@ -336,8 +319,9 @@ working tree.
 | `TestLogSanitization` (367) | truncamento >200 chars, mensagens curtas intactas, redação de token/auth_token/localStorage, dicts aninhados |
 | `TestDefaultMode` (409) | sem env var: modo inativo, todas as tools passam, qualquer URL/JS passa |
 
-**O que os testes NÃO cobrem hoje**: o WIP de integração (nenhum teste exercita
-`ToolRegistry.call_tool` nem o handshake do `WebSocketServer` em modo restrito).
+**O que os testes NÃO cobrem hoje**: a camada de integração (nenhum teste exercita
+`ToolRegistry.call_tool` nem o handshake do `WebSocketServer` em modo restrito —
+os testes validam o módulo `restricted_profile` diretamente). Lacuna declarada.
 
 CI: `.github/workflows/ci.yml` tem job dedicado `restricted-profile` (matriz Python
 3.11/3.12/3.13), step "Run restricted profile tests (Phase 7 — iFood security)",
@@ -347,34 +331,32 @@ rodando `pytest tests/test_restricted_profile.py -v`.
 pytest tests/test_restricted_profile.py -v
 ```
 
-## Pendências abertas declaradas (2026-07-13)
+## Pendências abertas declaradas (2026-07-17)
 
 | Pendência | Estado |
 |---|---|
 | `ALLOWED_SCRIPT_HASHES` vazio | Todo JS rejeitado; o piloto precisa popular a lista via runbook (b) antes de qualquer uso de `browser_execute_javascript` |
 | Allowlists hardcoded | `ALLOWED_HOSTS`/`ALLOWED_TOOLS`/`ALLOWED_SCRIPT_HASHES` vivem no código; não há config externa. Mudar = editar código + testes + PR |
 | Plano de fases "Phase 7/8" | Mencionado em CI (`ci.yml`: "Phase 7 — iFood security"), no commit `4c534b3` ("Phase 8") e no docstring de teste; o plano em si NÃO está documentado no repo |
-| WIP não commitado | Integração em `tools.py`/`websocket_server.py` só existe no working tree da branch `etapa-1-ifood-restricted-profile`; sem ela o modo restrito não bloqueia nada |
-| Sanitização em `_handle_message` (WIP) | O dict sanitizado substitui a mensagem processada, não só o log — revisar antes de commitar |
+| Testes da camada de integração | Nenhum teste exercita `ToolRegistry.call_tool`/handshake WS em modo restrito |
+| Sanitização em `_handle_message` | O dict sanitizado substitui a mensagem processada, não só o log — ponto fraco herdado de `ed98aac`, avaliar em mudança futura |
 
 ## Proveniência e manutenção
 
 - Verificado em **2026-07-17**, branch `etapa-1-ifood-restricted-profile`, contra:
-  - `src/browser_mcp/restricted_profile.py` (307 linhas em HEAD `4c534b3` /
-    311 linhas no working tree com o WIP das allowlists expandidas)
-  - `tests/test_restricted_profile.py` (440 linhas; 2 testes falhando hoje pelo WIP)
-  - `git diff src/browser_mcp/tools.py src/browser_mcp/websocket_server.py` (WIP)
+  - `src/browser_mcp/restricted_profile.py` (311 linhas; allowlists e integração
+    commitadas — `ed98aac` integrou, remoção do gestordepedidos veio em seguida)
+  - `tests/test_restricted_profile.py` (446 linhas, 44 testes passando)
   - `.github/workflows/ci.yml` (job `restricted-profile`)
-- **Re-verificar se o WIP já foi commitado** (primeira coisa a checar ao usar esta skill):
+- **Sanidade da integração** (checar ao usar esta skill):
   ```bash
-  git status --short src/browser_mcp/tools.py src/browser_mcp/websocket_server.py
-  # Saída vazia = WIP commitado (ou descartado!) — confirme com:
   grep -n "RestrictedProfile" src/browser_mcp/tools.py src/browser_mcp/websocket_server.py
-  # Hits presentes = integração no código. Atualize a seção "Estado da integração".
+  # Hits presentes = enforcement ligado no pipeline.
   ```
 - Re-verificar allowlists antes de citar valores: `ALLOWED_HOSTS`
-  (`restricted_profile.py:39-44`), `ALLOWED_TOOLS` (76-82),
-  `ALLOWED_SCRIPT_HASHES` (97). Line numbers podem deslocar após edições — confirme
+  (`restricted_profile.py:39-43`), `ALLOWED_TOOLS` (75-81),
+  `ALLOWED_SCRIPT_HASHES` (~96). Line numbers podem deslocar após edições — confirme
   com `grep -n "ALLOWED_" src/browser_mcp/restricted_profile.py`.
-- Atualize esta skill quando: allowlists mudarem, o WIP for commitado,
-  `ALLOWED_SCRIPT_HASHES` for populado, ou o plano de fases for documentado.
+- Atualize esta skill quando: allowlists mudarem, `ALLOWED_SCRIPT_HASHES` for
+  populado, testes de integração forem adicionados, ou o plano de fases for
+  documentado.
