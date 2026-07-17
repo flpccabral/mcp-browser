@@ -26,6 +26,7 @@ class NetworkInterceptor:
     def attach(self, page: Page) -> None:
         """Register request/response listeners on the page."""
         import asyncio
+
         self._page = page
         page.on("request", lambda request: self._on_request(request))
         page.on("response", lambda response: asyncio.create_task(self._on_response(response)))
@@ -196,10 +197,7 @@ class NetworkInterceptor:
                     "method": e.get("method", "GET"),
                     "url": e.get("url", ""),
                     "httpVersion": "HTTP/1.1",
-                    "headers": [
-                        {"name": k, "value": v}
-                        for k, v in e.get("headers", {}).items()
-                    ],
+                    "headers": [{"name": k, "value": v} for k, v in e.get("headers", {}).items()],
                     "queryString": [],
                     "cookies": [],
                     "headersSize": -1,
@@ -210,13 +208,14 @@ class NetworkInterceptor:
                     "statusText": "",
                     "httpVersion": "HTTP/1.1",
                     "headers": [
-                        {"name": k, "value": v}
-                        for k, v in e.get("response_headers", {}).items()
+                        {"name": k, "value": v} for k, v in e.get("response_headers", {}).items()
                     ],
                     "cookies": [],
                     "content": {
                         "size": len(e["response_body"]) if e.get("response_body") else 0,
-                        "mimeType": e.get("response_headers", {}).get("content-type", "application/octet-stream"),
+                        "mimeType": e.get("response_headers", {}).get(
+                            "content-type", "application/octet-stream"
+                        ),
                         "text": e.get("response_body", ""),
                     },
                     "redirectURL": "",

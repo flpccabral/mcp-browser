@@ -10,11 +10,14 @@ def get_overlay_js(color: str = "blue") -> str:
     Cores: blue (padrão), orange (atenção), red (perigo), green (concluído).
     """
     colors = {
-        "blue": "rgba(52, 152, 219,", "orange": "rgba(243, 156, 18,",
-        "red": "rgba(231, 76, 60,", "green": "rgba(46, 204, 113,",
+        "blue": "rgba(52, 152, 219,",
+        "orange": "rgba(243, 156, 18,",
+        "red": "rgba(231, 76, 60,",
+        "green": "rgba(46, 204, 113,",
     }
     c = colors.get(color, colors["blue"])
-    return """
+    return (
+        """
 (() => {
   if (document.getElementById('__mcp_browser_overlay')) return;
 
@@ -23,7 +26,9 @@ def get_overlay_js(color: str = "blue") -> str:
   overlay.style.cssText = `
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     z-index: 2147483647; pointer-events: none;
-    border: 3px solid """ + c + """ 0.5);
+    border: 3px solid """
+        + c
+        + """ 0.5);
     animation: __mcp_pulse 2s ease-in-out infinite;
     box-sizing: border-box;
   `;
@@ -32,7 +37,9 @@ def get_overlay_js(color: str = "blue") -> str:
   badge.style.cssText = `
     position: fixed; top: 8px; right: 8px;
     z-index: 2147483648; pointer-events: none;
-    background: """ + c + """ 0.9); color: white;
+    background: """
+        + c
+        + """ 0.9); color: white;
     font-family: system-ui, sans-serif; font-size: 11px;
     font-weight: 600; padding: 4px 10px;
     border-radius: 4px; letter-spacing: 0.5px;
@@ -54,6 +61,7 @@ def get_overlay_js(color: str = "blue") -> str:
   document.body.appendChild(overlay);
 })();
 """
+    )
 
 
 def get_remove_overlay_js() -> str:

@@ -12,7 +12,6 @@ These tests verify that the restricted profile enforces:
 """
 
 import os
-import stat
 import sys
 import tempfile
 from pathlib import Path
@@ -23,7 +22,6 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from browser_mcp.restricted_profile import (
-    ALLOWED_HOSTS,
     ALLOWED_SCRIPT_HASHES,
     ALLOWED_TOOLS,
     RestrictedProfile,
@@ -35,10 +33,10 @@ from browser_mcp.restricted_profile import (
     sanitize_log_message,
 )
 
-
 # =============================================================================
 # Domain allowlist tests
 # =============================================================================
+
 
 class TestDomainAllowlist:
     """Test navigate URL validation."""
@@ -95,6 +93,7 @@ class TestDomainAllowlist:
 # Tool allowlist tests
 # =============================================================================
 
+
 class TestToolAllowlist:
     """Test tool name validation."""
 
@@ -120,6 +119,7 @@ class TestToolAllowlist:
 # =============================================================================
 # JavaScript hash tests
 # =============================================================================
+
 
 class TestJavaScriptAllowlist:
     """Test script hash validation."""
@@ -164,24 +164,21 @@ class TestJavaScriptAllowlist:
 # validate_tool_call integration tests
 # =============================================================================
 
+
 class TestValidateToolCall:
     """Test the full validate_tool_call pipeline."""
 
     def test_navigate_rejected_in_default_mode(self, monkeypatch):
         """Default mode: no rejection, everything passes."""
         monkeypatch.delenv("IFOOD_RESTRICTED_MODE", raising=False)
-        allowed, reason = RestrictedProfile.validate_tool_call(
-            "browser_click", {"selector": "a"}
-        )
+        allowed, reason = RestrictedProfile.validate_tool_call("browser_click", {"selector": "a"})
         assert allowed is True
         assert reason == ""
 
     def test_disallowed_tool_rejected_in_restricted_mode(self, monkeypatch):
         """Restricted mode: tool outside allowlist is rejected."""
         monkeypatch.setenv("IFOOD_RESTRICTED_MODE", "1")
-        allowed, reason = RestrictedProfile.validate_tool_call(
-            "browser_click", {"selector": "a"}
-        )
+        allowed, reason = RestrictedProfile.validate_tool_call("browser_click", {"selector": "a"})
         assert allowed is False
         assert "REJECTED" in reason
         assert "browser_click" in reason
@@ -241,26 +238,20 @@ class TestValidateToolCall:
     def test_get_content_passes_restricted(self, monkeypatch):
         """Restricted mode: get_content passes (no domain check needed)."""
         monkeypatch.setenv("IFOOD_RESTRICTED_MODE", "1")
-        allowed, reason = RestrictedProfile.validate_tool_call(
-            "browser_get_content", {}
-        )
+        allowed, reason = RestrictedProfile.validate_tool_call("browser_get_content", {})
         assert allowed is True
 
     def test_navigate_missing_url_rejected(self, monkeypatch):
         """Restricted mode: navigate without URL is rejected."""
         monkeypatch.setenv("IFOOD_RESTRICTED_MODE", "1")
-        allowed, reason = RestrictedProfile.validate_tool_call(
-            "browser_navigate", {}
-        )
+        allowed, reason = RestrictedProfile.validate_tool_call("browser_navigate", {})
         assert allowed is False
         assert "REJECTED" in reason
 
     def test_execute_js_missing_code_rejected(self, monkeypatch):
         """Restricted mode: execute_javascript without code is rejected."""
         monkeypatch.setenv("IFOOD_RESTRICTED_MODE", "1")
-        allowed, reason = RestrictedProfile.validate_tool_call(
-            "browser_execute_javascript", {}
-        )
+        allowed, reason = RestrictedProfile.validate_tool_call("browser_execute_javascript", {})
         assert allowed is False
         assert "REJECTED" in reason
 
@@ -268,6 +259,7 @@ class TestValidateToolCall:
 # =============================================================================
 # Token permission tests
 # =============================================================================
+
 
 class TestTokenPermissions:
     """Test token file permission enforcement."""
@@ -280,9 +272,7 @@ class TestTokenPermissions:
             # Ensure it doesn't exist
             assert not fake_token.exists()
 
-            with mock.patch(
-                "browser_mcp.restricted_profile.TOKEN_PATH", fake_token
-            ):
+            with mock.patch("browser_mcp.restricted_profile.TOKEN_PATH", fake_token):
                 ok, msg = check_token_permissions()
                 assert ok is False
                 assert "not found" in msg.lower()
@@ -298,9 +288,7 @@ class TestTokenPermissions:
             fake_token.write_text("test-token-content")
             fake_token.chmod(0o644)  # world-readable — insecure
 
-            with mock.patch(
-                "browser_mcp.restricted_profile.TOKEN_PATH", fake_token
-            ):
+            with mock.patch("browser_mcp.restricted_profile.TOKEN_PATH", fake_token):
                 ok, msg = check_token_permissions()
                 assert ok is False
                 assert "insecure" in msg.lower() or "permissions" in msg.lower()
@@ -316,9 +304,7 @@ class TestTokenPermissions:
             fake_token.write_text("test-token-content")
             fake_token.chmod(0o600)  # owner read/write only
 
-            with mock.patch(
-                "browser_mcp.restricted_profile.TOKEN_PATH", fake_token
-            ):
+            with mock.patch("browser_mcp.restricted_profile.TOKEN_PATH", fake_token):
                 ok, msg = check_token_permissions()
                 assert ok is True
                 assert msg == ""
@@ -334,9 +320,7 @@ class TestTokenPermissions:
             fake_token.write_text("test-token-content")
             fake_token.chmod(0o400)  # owner read only
 
-            with mock.patch(
-                "browser_mcp.restricted_profile.TOKEN_PATH", fake_token
-            ):
+            with mock.patch("browser_mcp.restricted_profile.TOKEN_PATH", fake_token):
                 ok, msg = check_token_permissions()
                 assert ok is True
                 assert msg == ""
@@ -345,6 +329,7 @@ class TestTokenPermissions:
 # =============================================================================
 # Bind address tests
 # =============================================================================
+
 
 class TestBindRestrictions:
     """Test loopback binding enforcement."""
@@ -363,6 +348,7 @@ class TestBindRestrictions:
 # =============================================================================
 # Log sanitization tests
 # =============================================================================
+
 
 class TestLogSanitization:
     """Test that log messages are sanitized in restricted mode."""
@@ -406,6 +392,7 @@ class TestLogSanitization:
 # Restricted mode disabled by default
 # =============================================================================
 
+
 class TestDefaultMode:
     """Verify that restricted mode is disabled by default."""
 
@@ -417,8 +404,13 @@ class TestDefaultMode:
     def test_default_mode_all_tools_pass(self, monkeypatch):
         """In default mode, all tools pass validation."""
         monkeypatch.delenv("IFOOD_RESTRICTED_MODE", raising=False)
-        for tool in ["browser_click", "browser_screenshot", "browser_type",
-                      "browser_navigate", "browser_manage_session"]:
+        for tool in [
+            "browser_click",
+            "browser_screenshot",
+            "browser_type",
+            "browser_navigate",
+            "browser_manage_session",
+        ]:
             allowed, reason = RestrictedProfile.validate_tool_call(tool, {})
             assert allowed is True, f"Tool {tool} should pass in default mode"
             assert reason == ""

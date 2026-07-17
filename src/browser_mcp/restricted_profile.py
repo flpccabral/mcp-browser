@@ -21,10 +21,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-
 # ---------------------------------------------------------------------------
 # Environment detection
 # ---------------------------------------------------------------------------
+
 
 def _is_restricted_mode() -> bool:
     """Check if restricted mode is enabled via env var."""
@@ -176,9 +176,9 @@ def sanitize_log_message(message: str) -> str:
       - localStorage / sessionStorage data
     """
     # Truncate long messages (likely contain DOM or code)
-    MAX_LEN = 200
-    if len(message) > MAX_LEN:
-        message = message[:MAX_LEN] + "...[truncated]"
+    max_len = 200
+    if len(message) > max_len:
+        message = message[:max_len] + "...[truncated]"
 
     return message
 
@@ -186,6 +186,7 @@ def sanitize_log_message(message: str) -> str:
 # ---------------------------------------------------------------------------
 # RestrictedProfile — centralized enforcement point
 # ---------------------------------------------------------------------------
+
 
 class RestrictedProfile:
     """Centralized enforcement of iFood restricted-mode security policies.

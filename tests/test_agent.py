@@ -146,10 +146,10 @@ def test_parse_response_markdown_json():
     """JSON dentro de bloco markdown ```json ... ```."""
     agent = BrowserAgent(None, None)
     text = (
-        '```json\n'
+        "```json\n"
         '{"thought": "test", "tool": "browser_navigate", '
         '"params": {}, "is_complete": true}\n'
-        '```'
+        "```"
     )
     result = agent._parse_response(text)
     assert result is not None

@@ -74,10 +74,7 @@ async def test_click(browser_manager):
 
 async def test_type(browser_manager):
     # Usa data URI para garantir elementos presentes e teste determinístico
-    data_uri = (
-        'data:text/html,'
-        '<input type="text" name="custname">'
-    )
+    data_uri = 'data:text/html,<input type="text" name="custname">'
     await app.call_tool("browser_navigate", {"url": data_uri})
     result = await app.call_tool(
         "browser_type",
@@ -88,11 +85,11 @@ async def test_type(browser_manager):
 
 async def test_select_option(browser_manager):
     data_uri = (
-        'data:text/html,'
+        "data:text/html,"
         '<select name="size">'
         '<option value="small">Small</option>'
         '<option value="medium">Medium</option>'
-        '</select>'
+        "</select>"
     )
     await app.call_tool("browser_navigate", {"url": data_uri})
     result = await app.call_tool(
@@ -137,13 +134,7 @@ async def test_upload_file(browser_manager):
 # =============================================================================
 async def test_get_content(browser_manager):
     # Usa data URI para evitar indisponibilidade de sites externos
-    data_uri = (
-        'data:text/html,'
-        '<html><body>'
-        '<h1>Moby Dick</h1>'
-        '<p>Herman Melville</p>'
-        '</body></html>'
-    )
+    data_uri = "data:text/html,<html><body><h1>Moby Dick</h1><p>Herman Melville</p></body></html>"
     await app.call_tool("browser_navigate", {"url": data_uri})
     result = await app.call_tool("browser_get_content", {})
     text = result[0].text
@@ -151,10 +142,7 @@ async def test_get_content(browser_manager):
 
 
 async def test_get_content_html(browser_manager):
-    data_uri = (
-        'data:text/html,'
-        '<html><body><h1>Hello World</h1></body></html>'
-    )
+    data_uri = "data:text/html,<html><body><h1>Hello World</h1></body></html>"
     await app.call_tool("browser_navigate", {"url": data_uri})
     result = await app.call_tool("browser_get_content", {"as_html": True})
     assert "<html" in result[0].text or "<body" in result[0].text
