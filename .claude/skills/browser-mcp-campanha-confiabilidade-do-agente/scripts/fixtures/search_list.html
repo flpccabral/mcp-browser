@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Catálogo — Fixture</title>
+</head>
+<body>
+  <h1>Catálogo de Produtos</h1>
+  <input type="text" id="busca" aria-label="Buscar produto" placeholder="Buscar...">
+  <button id="btn-buscar">Buscar</button>
+  <ul id="lista">
+    <li>Parafuso M4 — R$ 0,10</li>
+    <li>Porca M4 — R$ 0,08</li>
+    <li>Arruela lisa — R$ 0,05</li>
+    <li>Chave allen 4mm — R$ 7,50</li>
+    <li>Trena 5m — R$ 22,90</li>
+  </ul>
+  <div id="contagem"></div>
+  <script>
+    document.getElementById('btn-buscar').addEventListener('click', function () {
+      var q = document.getElementById('busca').value.toLowerCase();
+      var items = document.querySelectorAll('#lista li');
+      var visiveis = 0;
+      items.forEach(function (li) {
+        var hit = li.textContent.toLowerCase().indexOf(q) !== -1;
+        li.style.display = hit ? '' : 'none';
+        if (hit) visiveis++;
+      });
+      document.getElementById('contagem').textContent =
+        'BUSCA_OK ' + visiveis + ' resultado(s) para "' + q + '"';
+    });
+  </script>
+</body>
+</html>

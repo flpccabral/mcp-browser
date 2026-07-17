@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Matrícula — Cascata AJAX (Fixture i-Educar simulada)</title>
+</head>
+<body>
+  <h1>Matrícula de Aluno</h1>
+  <p>Selecione escola, depois série, depois turma. Cada select seguinte só é
+     populado após a "requisição AJAX" (simulada com setTimeout) terminar.
+     Controle a latência com ?delay=MILLIS (padrão 800).</p>
+
+  <form id="matricula">
+    <label for="escola">Escola</label>
+    <select id="escola" aria-label="Escola">
+      <option value="">-- selecione --</option>
+      <option value="esc1">EM Machado de Assis</option>
+      <option value="esc2">EM Cora Coralina</option>
+    </select>
+
+    <label for="serie">Série</label>
+    <select id="serie" aria-label="Série" disabled>
+      <option value="">-- aguardando escola --</option>
+    </select>
+
+    <label for="turma">Turma</label>
+    <select id="turma" aria-label="Turma" disabled>
+      <option value="">-- aguardando série --</option>
+    </select>
+
+    <button type="submit" id="confirmar" disabled>Confirmar matrícula</button>
+  </form>
+  <div id="status" role="status">status: ocioso</div>
+  <div id="resultado"></div>
+
+  <script>
+    var DELAY = parseInt(new URLSearchParams(location.search).get('delay') || '800', 10);
+    var DATA = {
+      esc1: { series: { s1: '1º ano', s2: '2º ano' } },
+      esc2: { series: { s5: '5º ano', s6: '6º ano' } }
+    };
+    var TURMAS = {
+      s1: ['1A', '1B'], s2: ['2A'], s5: ['5A', '5B'], s6: ['6A']
+    };
+    var status = document.getElementById('status');
+
+    function fakeAjax(fill) {
+      status.textContent = 'status: carregando...';
+      // Mantém um fetch pendente real para o monitor de rede enxergar atividade.
+      fetch('data:text/plain,ok').catch(function () {});
+      setTimeout(function () {
+        fill();
+        status.textContent = 'status: ocioso';
+      }, DELAY);
+    }
+
+    function setOptions(sel, pairs) {
+      sel.innerHTML = '<option value="">-- selecione --</option>';
+      pairs.forEach(function (p) {
+        var o = document.createElement('option');
+        o.value = p[0]; o.textContent = p[1];
+        sel.appendChild(o);
+      });
+      sel.disabled = false;
+    }
+
+    document.getElementById('escola').addEventListener('change', function () {
+      var esc = this.value;
+      var serie = document.getElementById('serie');
+      var turma = document.getElementById('turma');
+      serie.disabled = true; serie.innerHTML = '<option value="">-- carregando --</option>';
+      turma.disabled = true; turma.innerHTML = '<option value="">-- aguardando série --</option>';
+      document.getElementById('confirmar').disabled = true;
+      if (!esc) return;
+      fakeAjax(function () {
+        var s = DATA[esc].series;
+        setOptions(serie, Object.keys(s).map(function (k) { return [k, s[k]]; }));
+      });
+    });
+
+    document.getElementById('serie').addEventListener('change', function () {
+      var s = this.value;
+      var turma = document.getElementById('turma');
+      turma.disabled = true; turma.innerHTML = '<option value="">-- carregando --</option>';
+      document.getElementById('confirmar').disabled = true;
+      if (!s) return;
+      fakeAjax(function () {
+        setOptions(turma, TURMAS[s].map(function (t) { return [t, 'Turma ' + t]; }));
+      });
+    });
+
+    document.getElementById('turma').addEventListener('change', function () {
+      document.getElementById('confirmar').disabled = !this.value;
+    });
+
+    document.getElementById('matricula').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var esc = document.getElementById('escola').value;
+      var s = document.getElementById('serie').value;
+      var t = document.getElementById('turma').value;
+      if (esc && s && t) {
+        document.getElementById('resultado').textContent =
+          'MATRICULA_OK escola=' + esc + ' serie=' + s + ' turma=' + t;
+        document.title = 'Matrícula confirmada';
+      } else {
+        document.getElementById('resultado').textContent = 'MATRICULA_INCOMPLETA';
+      }
+    });
+  </script>
+</body>
+</html>
