@@ -12,7 +12,7 @@ description: >
   só para extração de dados, refs @e do accessibility tree); ou conhecer os
   defeitos declarados (entry
   point do console script quebrado, contagem de tools divergente do README,
-  deprecation de websockets.server, broadcast WebSocket sem roteamento por
+  broadcast WebSocket sem roteamento por
   cliente, LLMClient duplicado). Gatilhos típicos: "como funciona a
   arquitetura", "por que existe o modo extensão", "onde a segurança é
   aplicada", "posso mudar X sem quebrar Y", "quantas tools existem de verdade",
@@ -49,8 +49,8 @@ Esta skill é o mapa conceitual. As irmãs acima são os runbooks operacionais.
 
 Um servidor MCP (Model Context Protocol — protocolo pelo qual um LLM chama
 ferramentas via stdio) de automação de browser, em Python (>=3.11), pacote
-`browser-mcp-server` 0.1.0. Dependências: `mcp`, `playwright`, `httpx`,
-`python-dotenv`, `websockets` (`pyproject.toml:39-45`). Suíte: 43 testes
+`browser-mcp-server` 0.1.0. Dependências de runtime: `mcp`, `playwright`,
+`httpx`, `python-dotenv` (`pyproject.toml:39-44`). Suíte: 43 testes
 (verificado 2026-07-18; a maioria requer `playwright install chromium`).
 
 Mapa de módulos em `src/browser_mcp/` (linhas verificadas 2026-07-18):
@@ -160,10 +160,11 @@ Implicações práticas:
 
 ## Protocolo WebSocket (servidor ↔ extensão)
 
-Servidor em `ws://localhost:8765`. Detalhe importante: embora a lib
-`websockets` seja importada, `start()` usa SEMPRE o servidor built-in
-(asyncio puro, RFC 6455 implementado à mão) por incompatibilidade de handshake
-da websockets v16 com Chrome (`websocket_server.py:114-116`).
+Servidor em `ws://localhost:8765`. `start()` usa um servidor próprio em asyncio
+puro (RFC 6455 implementado à mão), escolhido por incompatibilidade de handshake
+da biblioteca `websockets` v16 com Chrome. A biblioteca `websockets` foi
+**removida** das dependências de runtime (2026-07-18); o pacote não a importa
+mais.
 
 Mensagens (docstring `websocket_server.py:1-18`): entrada `identify`, `event`,
 `request`, `ping/pong`; saída `command`, `response`, `config`, `ping`.
@@ -266,31 +267,18 @@ Lição: conte decorators ancorados em início de linha ou pergunte ao registry
 em runtime; nunca confie no README para este número (gate de atualização de
 docs: [[browser-mcp-controle-de-mudancas]]).
 
-### 3. Import deprecado de `websockets.server` — quebra silenciosa futura
+### 3. ~~Import deprecado de `websockets.server`~~ — RESOLVIDO (2026-07-18)
 
-`websocket_server.py:39` faz `from websockets.server import
-WebSocketServerProtocol`. Com websockets 16.0 (versão instalada, verificada
-2026-07-13) isso emite `DeprecationWarning: websockets.server.
-WebSocketServerProtocol is deprecated` — é o caminho legado
-(`websockets.legacy`) marcado para remoção.
-
-Análise precisa do raio da explosão quando a remoção acontecer:
-
-- O import está num `try/except ImportError` (`websocket_server.py:37-44`);
-  se a remoção manifestar como `ImportError`, cai no fallback
-  `HAS_WEBSOCKETS=False` e o servidor built-in continua funcionando — que já
-  é o ÚNICO caminho usado por `start()` hoje (`websocket_server.py:114-116`).
-- Porém `_handle_client` (`websocket_server.py:164-185`) referencia
-  `websockets.exceptions.ConnectionClosed` e é código morto no fluxo atual
-  (nunca registrado como handler); e `stop()` ramifica por `HAS_WEBSOCKETS`
-  (`websocket_server.py:129`).
-- Risco real: dependendo de COMO a lib remover o símbolo (erro em import vs.
-  atributo ausente vs. warning promovido a erro em `-W error`), o
-  comportamento muda. CI com `-W error::DeprecationWarning` já falharia hoje.
-
-Estado: dívida declarada, correção aberta (remover o import legado e a
-ramificação `HAS_WEBSOCKETS`, que é maquinário morto). Arquivo tem WIP não
-commitado — coordene antes de mexer.
+Havia um `from websockets.server import WebSocketServerProtocol` que emitia
+`DeprecationWarning` na websockets v16 e quebraria numa versão futura. A
+biblioteca `websockets` era vestigial: o servidor sempre usou o caminho asyncio
+puro (o handler baseado na lib, `_handle_client`, era código morto). A correção
+foi **remover a biblioteca por completo** — import, o `_handle_client` morto, os
+ramos `HAS_WEBSOCKETS` e a dependência de runtime no `pyproject.toml`
+(`websockets` ficou só no extra `dev`, para o utilitário `ws_client.py`). Sem
+deprecação, uma dependência a menos, e o bug latente do `stop()` (que ramificava
+por `HAS_WEBSOCKETS`) foi eliminado. Validado com teste de handshake real (o
+servidor aceita conexão com token+origin, faz broadcast e rejeita token errado).
 
 ### 4. Broadcast sem roteamento por cliente
 
@@ -323,8 +311,8 @@ fato volátil (rode da raiz do repo, venv ativado onde houver `python`):
 | Entry point quebrado (declaração) | `grep -n "browser_mcp.server:main" pyproject.toml && grep -n "async def main" src/browser_mcp/server.py` |
 | Entry point quebrado (empírico) | `browser-mcp-server; echo "exit=$?"` (espere coroutine repr + RuntimeWarning + exit 1) |
 | Invocação que funciona | `python -m browser_mcp.server` (Ctrl+C após "Servidor stdio ativo") |
-| Deprecation websockets | `python -W error::DeprecationWarning -c "from websockets.server import WebSocketServerProtocol"` |
-| Versão websockets instalada | `python -c "import websockets; print(websockets.__version__)"` |
+| Servidor sem dependência websockets | `grep -c "import websockets" src/browser_mcp/websocket_server.py` (espere 0) |
+| Import do servidor sem deprecação | `python -W error::DeprecationWarning -c "import browser_mcp.websocket_server"` (sem erro) |
 | Broadcast sem roteamento | `grep -n 'msg_type == "command"' src/browser_mcp/websocket_server.py` |
 | Singleton BrowserManager | `grep -n "__new__" src/browser_mcp/browser_manager.py` |
 | LLMClient sem singleton | `grep -cE "__new__|_instance" src/browser_mcp/llm_client.py` (espere 0) |
