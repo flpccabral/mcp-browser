@@ -32,17 +32,6 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs
 
-# websockets é um dependência opcional; tentamos importar
-# Se não estiver instalado, usamos asyncio puro com implementação mínima
-try:
-    import websockets
-    from websockets.server import WebSocketServerProtocol
-
-    HAS_WEBSOCKETS = True
-except ImportError:
-    HAS_WEBSOCKETS = False
-    WebSocketServerProtocol = Any
-
 # Tamanho máximo de payload para evitar ataques de exaustão de memória (64 MiB)
 MAX_PAYLOAD_SIZE = 64 * 1024 * 1024
 TOKEN_PATH = Path.home() / ".mcp_browser_token"
@@ -71,7 +60,7 @@ class WebSocketServer:
     def __init__(self, host: str = "localhost", port: int = 8765):
         self.host = host
         self.port = port
-        self._clients: set[WebSocketServerProtocol] = set()
+        self._clients: set[Any] = set()
         self._server: Any | None = None
         self._task: asyncio.Task | None = None
         self._running = False
@@ -94,8 +83,9 @@ class WebSocketServer:
             return
         self._running = True
 
-        # Usar sempre o servidor built-in para máxima compatibilidade
-        # (a biblioteca websockets v16 tem bugs de handshake com Chrome)
+        # Servidor WebSocket em asyncio puro (implementação própria do handshake
+        # RFC 6455). Antes havia a opção da biblioteca `websockets`, descartada
+        # por bugs de handshake com o Chrome na v16; hoje este é o único caminho.
         self._task = asyncio.create_task(self._start_builtin_server())
         print(
             f"[WS-SERVER] WebSocket server iniciado em ws://{self.host}:{self.port}",
@@ -109,11 +99,7 @@ class WebSocketServer:
         # Fecha conexões pendentes
         for client in list(self._clients):
             try:
-                if HAS_WEBSOCKETS:
-                    await client.close()
-                else:
-                    client.writer.close()
-                    await client.writer.wait_closed()
+                await client.close()
             except Exception as e:
                 print(f"[WS-SERVER] Erro ao fechar cliente: {e}", file=sys.stderr)
         self._clients.clear()
@@ -141,36 +127,7 @@ class WebSocketServer:
         print("[WS-SERVER] Servidor WebSocket parado.", file=sys.stderr)
 
     # ------------------------------------------------------------------
-    # Handlers de conexão (websockets library)
-    # ------------------------------------------------------------------
-
-    async def _handle_client(self, ws: Any) -> None:
-        """Handler para cada conexão WebSocket (websockets lib)."""
-        self._clients.add(ws)
-        client_addr = getattr(ws, "remote_address", ("unknown", 0))
-        client_addr_str = f"{client_addr[0]}:{client_addr[1]}"
-        print(f"[WS-SERVER] Cliente conectado: {client_addr_str}", file=sys.stderr)
-
-        try:
-            async for message in ws:
-                try:
-                    msg = json.loads(message)
-                except json.JSONDecodeError:
-                    print(f"[WS-SERVER] JSON inválido: {message[:200]}", file=sys.stderr)
-                    continue
-                await self._handle_message(msg, ws)
-        except websockets.exceptions.ConnectionClosed as e:
-            print(
-                f"[WS-SERVER] Conexão fechada: {client_addr_str} (code={e.code})", file=sys.stderr
-            )
-        except Exception as e:
-            print(f"[WS-SERVER] Erro no handler: {e}", file=sys.stderr)
-        finally:
-            self._clients.discard(ws)
-            print(f"[WS-SERVER] Cliente desconectado: {client_addr_str}", file=sys.stderr)
-
-    # ------------------------------------------------------------------
-    # Servidor built-in (asyncio puro) — fallback se websockets não estiver instalado
+    # Servidor WebSocket (asyncio puro, RFC 6455)
     # ------------------------------------------------------------------
 
     async def _start_builtin_server(self) -> None:
@@ -478,10 +435,7 @@ class WebSocketServer:
         text = json.dumps(message, ensure_ascii=False, default=str)
         for client in list(self._clients):
             try:
-                if HAS_WEBSOCKETS and hasattr(client, "send"):
-                    await client.send(text)
-                else:
-                    await client.send(text)
+                await client.send(text)
                 sent += 1
             except Exception as e:
                 print(f"[WS-SERVER] Erro ao broadcast: {e}", file=sys.stderr)
@@ -492,10 +446,7 @@ class WebSocketServer:
         """Envia mensagem para um cliente específico."""
         try:
             text = json.dumps(message, ensure_ascii=False, default=str)
-            if HAS_WEBSOCKETS and hasattr(ws, "send"):
-                await ws.send(text)
-            else:
-                await ws.send(text)
+            await ws.send(text)
             return True
         except Exception as e:
             print(f"[WS-SERVER] Erro ao enviar para cliente: {e}", file=sys.stderr)

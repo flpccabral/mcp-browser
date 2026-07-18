@@ -125,8 +125,9 @@ tratar como regressão de produto.
 > "flaky/rede" ou "regressão real de código". Nunca reporte só o número
 > agregado — um `N failed` sozinho engana.
 
-**2 `DeprecationWarning`** persistem (`websockets.server.WebSocketServerProtocol`
-e `websockets.legacy`); esperados e rastreados em [[browser-mcp-build-e-ambiente]].
+A suíte roda **sem `DeprecationWarning`** desde 2026-07-18 (a biblioteca
+`websockets`, que gerava dois avisos, foi removida — ver
+[[browser-mcp-build-e-ambiente]]).
 
 ---
 
@@ -296,7 +297,7 @@ números antes de rodar): [[browser-mcp-metodologia-e-prova]].
     `test_agent.py` 11). Alguns smokes são flaky por rede (httpbin/networkidle).
   - `ruff check src/browser_mcp tests` e `ruff format --check src/browser_mcp tests`:
     **limpos** (exit 0).
-  - **2 `DeprecationWarning`** de `websockets`.
+  - Suíte **sem `DeprecationWarning`** (websockets removido em 2026-07-18).
   - Contagem de tools: `grep -c "^@app.tool" src/browser_mcp/tools.py` → **39**;
     README diz **37 ferramentas**. **Divergência aberta** (sem a âncora `^` o
     grep dá 41, contando 2 docstrings — o README está defasado).

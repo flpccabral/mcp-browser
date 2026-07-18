@@ -5,8 +5,7 @@ description: >
   as armadilhas conhecidas. Use quando precisar de: setup inicial (venv, pip
   install -e, playwright install chromium), testes de browser falhando em massa
   após clone, diferença de versão de Python entre .venv local (3.14) e CI
-  (3.11/3.12/3.13), DeprecationWarnings do pacote websockets, upgrade de
-  websockets bloqueado, .env.example com variáveis erradas (HEADLESS vs
+  (3.11/3.12/3.13), .env.example com variáveis erradas (HEADLESS vs
   BROWSER_HEADLESS), verificar se o ambiente está saudável, ruff check falhando
   com erros pré-existentes, build de distribuição (python -m build, dist/,
   PUBLISH.md) ou carregar a extensão Chrome em modo desenvolvedor.
@@ -91,7 +90,9 @@ Runtime:
 | playwright | >=1.40.0 |
 | httpx | >=0.27.0 |
 | python-dotenv | >=1.0.0 |
-| websockets | >=12.0 |
+
+(`websockets>=12.0` está só no extra `dev`, para `ws_client.py` — o servidor não
+o usa em runtime.)
 
 Dev (`.[dev]`):
 
@@ -102,32 +103,20 @@ Dev (`.[dev]`):
 | ruff | >=0.3 |
 | mypy | >=1.8 |
 
-### Armadilha #2 — DeprecationWarnings do `websockets` (NÃO faça upgrade cego)
+### Armadilha #2 — DeprecationWarnings do `websockets` (RESOLVIDO em 2026-07-18)
 
-O código importa API deprecada em
-`src/browser_mcp/websocket_server.py:39`:
-
-```python
-from websockets.server import WebSocketServerProtocol
-```
-
-Com o `websockets` 16.0 instalado no `.venv` (verificado em 2026-07-12),
-isso emite dois avisos reais:
-
-- `websockets.server.WebSocketServerProtocol is deprecated`
-- `websockets.legacy is deprecated` (deprecado desde a 14.0)
-
-**Esses warnings são esperados** — não indicam ambiente quebrado.
-**NÃO** faça upgrade/pin de `websockets` para uma versão que remova a API
-legacy sem antes migrar `websocket_server.py` para a API `asyncio` nova
-(`websockets.asyncio.server`). Essa migração é **pendência aberta** do repo;
-até ela acontecer, conviva com os warnings.
-
-Reproduza os warnings para confirmar que são esses (e não outra coisa):
+Até 2026-07-18 o servidor importava uma API deprecada da biblioteca `websockets`
+(`from websockets.server import WebSocketServerProtocol`), gerando dois
+`DeprecationWarning`. A biblioteca era vestigial (o servidor sempre usou asyncio
+puro) e foi **removida** das dependências de runtime — ficou só no extra `dev`,
+para o utilitário `ws_client.py`. O import do servidor hoje é limpo:
 
 ```bash
-.venv/bin/python -W error::DeprecationWarning -c "from websockets.server import WebSocketServerProtocol"
+.venv/bin/python -W error::DeprecationWarning -c "import browser_mcp.websocket_server"
 ```
+
+Se você ainda vê esses warnings ou `import websockets` em `websocket_server.py`,
+seu checkout está desatualizado.
 
 ### Armadilha #3 — `.env.example` documenta variáveis ERRADAS
 
@@ -223,7 +212,7 @@ Como operá-la junto com o servidor é assunto de
 - [ ] `playwright install chromium` (Armadilha #1)
 - [ ] `pytest tests/test_agent.py -q -k "parse or prune"` → 8 passam em <1 s
 - [ ] `pytest tests/ -q` → 43 coletados (~min, exige rede/Chromium)
-- [ ] DeprecationWarnings de `websockets` aparecem? Esperado (Armadilha #2)
+- [ ] `import browser_mcp.websocket_server` sem DeprecationWarning (Armadilha #2 resolvida)
 - [ ] `ruff check src/browser_mcp tests` limpo (escopo do CI)
 - [ ] Não copiar `.env.example` cegamente (Armadilha #3) — validar nomes em
       `browser-mcp-config-e-flags`
@@ -239,8 +228,8 @@ grep -A2 'requires-python' pyproject.toml && grep -A8 '^dependencies' pyproject.
 .venv/bin/python --version
 # Matriz de Python do CI
 grep -n 'python-version' .github/workflows/ci.yml
-# Import deprecado do websockets
-grep -n 'WebSocketServerProtocol' src/browser_mcp/websocket_server.py
+# Servidor não depende mais de websockets (espere 0)
+grep -c 'import websockets' src/browser_mcp/websocket_server.py
 # Variáveis de ambiente reais vs .env.example
 grep -n 'os.getenv' src/browser_mcp/browser_manager.py && cat .env.example
 # Contagem total de testes
