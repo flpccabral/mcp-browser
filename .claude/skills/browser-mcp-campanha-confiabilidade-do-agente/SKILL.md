@@ -7,7 +7,7 @@ description: >-
   "aumentar taxa de sucesso", "benchmark do agente", "medir sucesso do agente",
   "erros de parse do LLM", "browser_agent_task não completa de forma sistêmica",
   ou quando alguém propõe endurecer parsing/retry/observação do agente. Fornece:
-  Fase 0 (harness de benchmark — primeiro entregável, pois HOJE não medimos nada),
+  Fase 0 (harness de benchmark — linha de base estabelecida em baseline-2026-07-18.md),
   Fase 1 (endurecer _parse_response), Fase 2 (resiliência em camadas: retry/backoff/
   fallback), Fase 3 (observação melhor), Fase 4 (promoção via controle de mudanças),
   menu de soluções ranqueado e caminhos comprovadamente errados cercados. NÃO use para
@@ -21,8 +21,16 @@ Este é o problema mais difícil em aberto do repositório. O dono declarou: a
 CONFIABILIDADE do agente (`src/browser_mcp/agent.py`, classe `BrowserAgent`, loop
 `execute_task` OBSERVE→THINK→CHECK→ACT→RECORD) é o alvo. O SOTA público
 (browser-use, 104k stars) reporta 87.4% em 200 tarefas do benchmark Odysseys
-(dado externo, 2026-07-13). **Nós não medimos nada.** Toda esta campanha existe
-para trocar "acho que melhorou" por um número.
+(dado externo, 2026-07-13). Toda esta campanha existe para trocar "acho que
+melhorou" por um número.
+
+**Linha de base estabelecida em 2026-07-18** (ver `baseline-2026-07-18.md`):
+com provedor rápido e sem rate limit (`gemma4:31b-cloud`), **7/7 (100%) estável**
+no conjunto offline, 0 incidentes de parse. A "não-confiabilidade" dos runs
+anteriores (Ollama lento, NVIDIA free rate-limited) era **confound de provedor**,
+não defeito do agente. Fase 1 desnecessária; Fase 2 (retry/backoff) implementada
+e validada como upside puro; o conjunto de 7 tarefas está saturado — a próxima
+alavanca é **ampliar o benchmark com tarefas mais difíceis** para achar o teto real.
 
 ## Regra de ouro (leia antes de qualquer coisa)
 
@@ -108,12 +116,15 @@ então não depende do server. Não "conserte" isso dentro da campanha de confia
 
 ---
 
-## FASE 0 — Linha de base (PRIMEIRO ENTREGÁVEL)
+## FASE 0 — Linha de base (ESTABELECIDA em 2026-07-18)
 
-Hoje não existe benchmark de taxa de sucesso. O primeiro entregável é o harness.
-**Ele já existe nesta skill:** `scripts/benchmark_agent.py`
-(decisão de manutenção documentada no fim). Nada da campanha prossegue sem uma
-linha de base estável.
+O harness é `scripts/benchmark_agent.py` (decisão de manutenção documentada no
+fim). A linha de base foi rodada e registrada em **`baseline-2026-07-18.md`** —
+leia-o antes de qualquer mudança no agente; é a régua de todas as fases.
+Resumo: **7/7 (100%) estável, 0 incidentes de parse** (provedor rápido sem rate
+limit). O conjunto de 7 tarefas está saturado — para a campanha seguir tendo
+régua útil, amplie o benchmark com tarefas mais difíceis. Re-rode o harness ao
+mudar o agente.
 
 ### O que o harness mede
 
@@ -233,7 +244,7 @@ deles — copie a ideia e prove com número.
 
 | Mecanismo browser-use | Estado no nosso código (verificado 2026-07-13) | Equivalente mínimo (CANDIDATA) |
 |---|---|---|
-| retry 5x + backoff no LLM | **NÃO EXISTE.** `chat` (`llm_client.py:46`) faz 1 chamada; `raise_for_status` (`:65`,`:95`) propaga direto | Envolver o POST em retry com backoff exponencial (ex.: 3–5 tentativas) para 429/5xx/timeout, DENTRO de `chat`. Não retry em 4xx de auth |
+| retry 5x + backoff no LLM | **IMPLEMENTADO (2026-07-18).** `_request` (`llm_client.py`) faz até 5 tentativas com backoff exponencial + `Retry-After` para 429/5xx/timeout/erro de rede; 4xx de auth não retenta. Elimina a categoria `llm_error` (429). Delta de sucesso limpo pendente de provedor sem rate limit agressivo | (feito) |
 | `fallback_llm` | não existe | Segundo `LLMClient` como fallback quando o primário falha após retries. Custo: 2ª chave. Só se a baseline mostrar `llm_error` relevante |
 | `max_failures=3` por passo | JÁ EXISTE parcialmente: `max_consecutive_errors=3` (`agent.py:88`), incrementado em `agent.py:155`/`:170`/`:491`, aborta em `:156`/`:171` | Manter. Avaliar se deve ser por-passo (reset em sucesso — já faz em `agent.py:151`) vs global |
 | `final_response_after_failure` | JÁ EXISTE: `_build_final_result(success=False, report=...)` sempre devolve um dict com report e histórico (`agent.py:157`,`:172`,`:217`) | Manter. Talvez enriquecer o report com a última observação |
@@ -297,7 +308,7 @@ Ordenado por (retorno provável ÷ custo), com pré-requisito de análise. Nenhu
 
 | # | Solução | Custo | Risco | Pré-requisito de análise (OBRIGATÓRIO) |
 |---|---|---|---|---|
-| 1 | Retry/backoff em `LLMClient.chat` (Fase 2) | Baixo | Baixo | Baseline mostra `llm_error` > 0, ou incidentes de rede intermitentes |
+| 1 | ~~Retry/backoff em `LLMClient.chat`~~ **FEITO (2026-07-18)** — resiliência entregue; delta de sucesso limpo pendente | Baixo | Baixo | Baseline mostrou `llm_error` (429) — critério atendido |
 | 2 | Validação de schema / `json_object` em `_parse_response` (Fase 1) | Baixo | Baixo | `total_parse_incidents` alto na baseline |
 | 3 | Rede recente na observação (Fase 3.1) | Médio | Médio | Falhas concentradas em cascata AJAX (`cascade_*`) |
 | 4 | `fallback_llm` (Fase 2) | Alto (2ª chave) | Médio | `llm_error` recorrente atribuível a UM provedor |
