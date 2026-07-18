@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Catálogo paginado</title></head>
+<body>
+  <h1>Catálogo de produtos</h1>
+  <p>Lista paginada — 3 itens por página. Navegue pelas páginas para achar o SKU procurado.</p>
+  <ul id="lista" aria-label="produtos"></ul>
+  <div>
+    <button id="prev" aria-label="Página anterior">Anterior</button>
+    <span id="pag">página 1 de 3</span>
+    <button id="next" aria-label="Próxima página">Próxima</button>
+  </div>
+  <script>
+    var ITENS = [
+      ["SKU-ALFA-1", "R$ 10,00"], ["SKU-BETA-2", "R$ 20,00"], ["SKU-GAMA-3", "R$ 30,00"],
+      ["SKU-DELTA-4", "R$ 40,00"], ["SKU-EPS-5", "R$ 50,00"], ["SKU-OME-6", "R$ 60,00"],
+      ["SKU-TETA-7", "R$ 70,00"], ["SKU-IOTA-8", "R$ 80,00"], ["SKU-ZETA-9", "R$ 145,00"]
+    ];
+    var page = 0;
+    function render() {
+      var ul = document.getElementById('lista');
+      ul.innerHTML = '';
+      ITENS.slice(page*3, page*3+3).forEach(function (it) {
+        var li = document.createElement('li');
+        li.textContent = it[0] + ' — ' + it[1];
+        ul.appendChild(li);
+      });
+      document.getElementById('pag').textContent = 'página ' + (page+1) + ' de 3';
+      document.getElementById('prev').disabled = page === 0;
+      document.getElementById('next').disabled = page === 2;
+    }
+    document.getElementById('next').addEventListener('click', function () {
+      if (page < 2) { page++; render(); }
+    });
+    document.getElementById('prev').addEventListener('click', function () {
+      if (page > 0) { page--; render(); }
+    });
+    render();
+  </script>
+</body>
+</html>

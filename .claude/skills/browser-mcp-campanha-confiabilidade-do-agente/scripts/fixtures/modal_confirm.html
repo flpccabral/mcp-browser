@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Excluir com confirmação</title></head>
+<body>
+  <h1>Item #4432</h1>
+  <p>Excluir o item exige confirmação num diálogo modal.</p>
+  <button id="excluir" aria-label="Excluir item">Excluir item</button>
+
+  <div id="modal" role="dialog" aria-label="Confirmar exclusão" style="display:none;border:2px solid #444;padding:12px;margin-top:12px;">
+    <p>Tem certeza que deseja excluir o item #4432?</p>
+    <button id="confirmar" aria-label="Confirmar exclusão">Confirmar</button>
+    <button id="cancelar" aria-label="Cancelar">Cancelar</button>
+  </div>
+
+  <div id="resultado" role="status"></div>
+  <script>
+    var modal = document.getElementById('modal');
+    document.getElementById('excluir').addEventListener('click', function () {
+      modal.style.display = 'block';
+    });
+    document.getElementById('cancelar').addEventListener('click', function () {
+      modal.style.display = 'none';
+    });
+    document.getElementById('confirmar').addEventListener('click', function () {
+      modal.style.display = 'none';
+      document.getElementById('resultado').textContent = 'EXCLUIDO_OK item=4432';
+      document.title = 'Item excluído';
+    });
+  </script>
+</body>
+</html>

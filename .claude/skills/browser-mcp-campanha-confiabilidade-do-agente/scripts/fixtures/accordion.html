@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Detalhes em accordion</title></head>
+<body>
+  <h1>Pedido #7781</h1>
+  <p>As informações estão em seções recolhidas. Expanda a seção certa para ver o conteúdo.</p>
+
+  <button class="acc" aria-expanded="false" aria-controls="s1" id="b1">Resumo do pagamento</button>
+  <div id="s1" hidden><p>Total pago: R$ 320,00 no cartão final 4432.</p></div>
+
+  <button class="acc" aria-expanded="false" aria-controls="s2" id="b2">Detalhes de envio</button>
+  <div id="s2" hidden><p>Código de rastreio: <strong>BR9931XZ</strong> — transportadora ExpressoSul.</p></div>
+
+  <button class="acc" aria-expanded="false" aria-controls="s3" id="b3">Itens do pedido</button>
+  <div id="s3" hidden><p>2× cabo HDMI, 1× fonte 60W.</p></div>
+
+  <script>
+    document.querySelectorAll('.acc').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var panel = document.getElementById(btn.getAttribute('aria-controls'));
+        var open = panel.hasAttribute('hidden');
+        if (open) { panel.removeAttribute('hidden'); btn.setAttribute('aria-expanded', 'true'); }
+        else { panel.setAttribute('hidden', ''); btn.setAttribute('aria-expanded', 'false'); }
+      });
+    });
+  </script>
+</body>
+</html>

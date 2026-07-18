@@ -2,7 +2,9 @@
 """Benchmark de confiabilidade do BrowserAgent (Fase 0 da campanha).
 
 Roda N tarefas reproduzíveis contra fixtures HTML locais (servidas por um
-http.server embutido) + 1 tarefa contra example.com, e produz métricas:
+http.server embutido) + 1 tarefa contra example.com. Além das tarefas simples,
+inclui casos difíceis (paginação, iframe, recuperação de validação, modal,
+accordion) para não saturar a régua. Produz métricas:
 
   - taxa de sucesso (tarefas completas / N)
   - iterações médias (action_count)
@@ -40,6 +42,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import http.server
 import json
 import os
@@ -47,9 +50,10 @@ import socketserver
 import sys
 import threading
 import time
-from dataclasses import dataclass, field
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 DEFAULT_PORT = 8763
@@ -87,6 +91,26 @@ def _page_contains(*needles: str) -> CheckFn:
         except Exception:
             return False
         return all(n in content for n in needles)
+    return check
+
+
+def _report_or_page(*needles: str) -> CheckFn:
+    """Passa se os needles estão no report OU no conteúdo da página.
+
+    Útil quando o valor-alvo pode ser reportado pelo agente ou ficar visível na
+    página após a ação (ex.: conteúdo de iframe que o agente extrai e reporta).
+    """
+
+    async def check(bm: Any, result: dict[str, Any]) -> bool:
+        report = (result.get("report") or "").lower()
+        if all(n.lower() in report for n in needles):
+            return True
+        try:
+            content = (await bm.get_content()).lower()
+        except Exception:
+            return False
+        return all(n.lower() in content for n in needles)
+
     return check
 
 
@@ -158,6 +182,58 @@ def build_tasks(base_url: str) -> list[Task]:
             ),
             check=_page_contains("ENDERECO_OK"),
             notes="cascata AJAX lenta — estressa browser_wait/network_idle",
+        ),
+        # --- Tarefas difíceis (adicionadas 2026-07-18 para desaturar a régua) ---
+        Task(
+            id="pagination",
+            prompt=(
+                f"Navegue para {base_url}/pagination.html. O catálogo tem 3 páginas "
+                "com 3 itens cada. Encontre o SKU-ZETA-9 (não está na primeira página; "
+                "use o botão Próxima para navegar) e informe no report o preço exato dele."
+            ),
+            check=_report_contains("145,00"),
+            notes="paginação — item fora da 1ª página, exige navegar",
+        ),
+        Task(
+            id="iframe_extract",
+            prompt=(
+                f"Navegue para {base_url}/iframe_fact.html. O número de autorização "
+                "está dentro de um documento incorporado (iframe). Encontre-o e "
+                "informe no report o número de autorização exato."
+            ),
+            check=_report_or_page("IF-XR-2291"),
+            notes="conteúdo dentro de iframe — fora da árvore principal",
+        ),
+        Task(
+            id="form_recovery",
+            prompt=(
+                f"Navegue para {base_url}/form_validate.html e crie uma conta para o "
+                "usuário 'joao' com a senha 'sol'. Se a senha for rejeitada por ser "
+                "curta, escolha uma senha válida com 8+ caracteres e tente de novo. "
+                "Confirme que a conta foi criada."
+            ),
+            check=_page_contains("CADASTRO_OK"),
+            notes="recuperação de erro de validação (senha curta → ajustar)",
+        ),
+        Task(
+            id="modal_confirm",
+            prompt=(
+                f"Navegue para {base_url}/modal_confirm.html. Exclua o item: clique em "
+                "Excluir item e depois confirme no diálogo que aparecer. Confirme que "
+                "o item foi excluído."
+            ),
+            check=_page_contains("EXCLUIDO_OK"),
+            notes="modal de confirmação em 2 passos",
+        ),
+        Task(
+            id="accordion",
+            prompt=(
+                f"Navegue para {base_url}/accordion.html. As seções começam recolhidas. "
+                "Encontre o código de rastreio do pedido (está na seção de envio, que "
+                "você precisa expandir) e informe-o no report."
+            ),
+            check=_report_or_page("BR9931XZ"),
+            notes="conteúdo escondido em accordion — exige expandir a seção certa",
         ),
         Task(
             id="example_com",
@@ -254,7 +330,7 @@ async def run_benchmark(tasks: list[Task], task_timeout: int,
                     agent.execute_task(task.prompt), timeout=task_timeout
                 )
                 check_ok = await task.check(bm, result)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 timed_out = True
             except Exception as exc:
                 crashed = True
@@ -278,10 +354,8 @@ async def run_benchmark(tasks: list[Task], task_timeout: int,
                   f"{elapsed}s")
 
             # reset de estado entre tarefas
-            try:
+            with contextlib.suppress(Exception):
                 await bm.navigate("about:blank")
-            except Exception:
-                pass
     finally:
         await bm.stop()
 

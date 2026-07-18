@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Cadastro com validação</title></head>
+<body>
+  <h1>Criar conta</h1>
+  <p>A senha precisa ter no mínimo 8 caracteres. Corrija se for rejeitada.</p>
+  <form id="cad">
+    <label for="user">Usuário</label>
+    <input id="user" aria-label="Usuário" type="text">
+    <label for="pass">Senha</label>
+    <input id="pass" aria-label="Senha" type="password">
+    <button type="submit" id="criar">Criar conta</button>
+  </form>
+  <div id="erro" role="alert" style="color:#b00"></div>
+  <div id="resultado" role="status"></div>
+  <script>
+    document.getElementById('cad').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var u = document.getElementById('user').value.trim();
+      var p = document.getElementById('pass').value;
+      var erro = document.getElementById('erro');
+      var res = document.getElementById('resultado');
+      erro.textContent = '';
+      res.textContent = '';
+      if (!u) { erro.textContent = 'Informe o usuário.'; return; }
+      if (p.length < 8) {
+        erro.textContent = 'Senha muito curta: use ao menos 8 caracteres.';
+        return;
+      }
+      res.textContent = 'CADASTRO_OK usuario=' + u;
+      document.title = 'Conta criada';
+    });
+  </script>
+</body>
+</html>
