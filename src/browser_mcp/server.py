@@ -44,8 +44,8 @@ async def _shutdown(signal_name: str):
     sys.exit(0)
 
 
-async def main():
-    """Entry point principal do servidor MCP.
+async def _run_server():
+    """Corrotina principal do servidor MCP.
 
     - Inicializa BrowserManager e LLMClient
     - Configura handlers de sinal (SIGINT / SIGTERM)
@@ -81,11 +81,20 @@ async def main():
         )
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Entry point síncrono (console script `browser-mcp-server`).
+
+    Roda a corrotina do servidor com asyncio.run — o console script do
+    pyproject aponta para cá, então precisa ser síncrono.
+    """
     try:
-        asyncio.run(main())
+        asyncio.run(_run_server())
     except KeyboardInterrupt:
         print("[SERVER] Interrompido pelo usuário.", file=sys.stderr)
     except Exception as e:
         print(f"[SERVER] Erro fatal: {e}", file=sys.stderr)
         raise
+
+
+if __name__ == "__main__":
+    main()
