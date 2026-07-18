@@ -10,8 +10,7 @@ description: >
   singletons globais (BrowserManager, ExtensionBridge, websocket_server) e suas
   implicações; avaliar se uma mudança viola um invariante (execute_javascript
   só para extração de dados, refs @e do accessibility tree); ou conhecer os
-  defeitos declarados (entry
-  point do console script quebrado, contagem de tools divergente do README,
+  defeitos declarados (contagem de tools divergente do README,
   broadcast WebSocket sem roteamento por
   cliente, LLMClient duplicado). Gatilhos típicos: "como funciona a
   arquitetura", "por que existe o modo extensão", "onde a segurança é
@@ -57,14 +56,14 @@ Mapa de módulos em `src/browser_mcp/` (linhas verificadas 2026-07-18):
 
 | Módulo | Linhas | Papel |
 |---|---|---|
-| `server.py` | 93 | Entry point MCP: stdio server, list_tools/call_tool, shutdown |
+| `server.py` | 100 | Entry point MCP: stdio server, list_tools/call_tool, shutdown |
 | `tools.py` | 1312 | `ToolRegistry` + 39 tools `@app.tool` |
 | `browser_manager.py` | 1256 | Singleton que detém o browser e roteia por modo |
 | `agent.py` | 596 | Agente autônomo: loop OBSERVE→THINK→CHECK→ACT→RECORD (`agent.py:108`) |
 | `extension_bridge.py` | 441 | Singleton: ponte comandos/eventos com a extensão |
-| `websocket_server.py` | 583 | Servidor WS em `ws://localhost:8765` |
+| `websocket_server.py` | 498 | Servidor WS em `ws://localhost:8765` |
 | `network.py` | 251 | Interceptação de rede no modo Playwright |
-| `llm_client.py` | 101 | Cliente HTTP para o LLM do agente |
+| `llm_client.py` | 146 | Cliente HTTP para o LLM do agente |
 | `visual_indicator.py` | 136 | Indicadores visuais via CDP Runtime.evaluate |
 | `utils.py` | 59 | Utilitários |
 
@@ -106,7 +105,7 @@ mutuamente exclusivos por design: um browser lógico por processo.
 Cliente MCP (LLM)
   │ stdio (JSON-RPC)
   ▼
-server.py — @server.call_tool → handle_call_tool (server.py:24-32)
+server.py — @server.call_tool → handle_call_tool (server.py:24-30)
   │ delega para app.call_tool(name, arguments)
   ▼
 ToolRegistry.call_tool (tools.py)
@@ -122,7 +121,7 @@ BrowserManager (singleton) — método da tool (ex.: navigate)
       ExtensionBridge.execute_command  (extension_bridge.py)
         │
         ▼
-      WebSocketServer.execute_command  (websocket_server.py:552)
+      WebSocketServer.execute_command  (websocket_server.py:467)
         │ cria Future em _pending_responses[req_id]
         │ broadcast({type:"command", id, tool, params}) para TODOS os clientes
         ▼
@@ -130,12 +129,12 @@ BrowserManager (singleton) — método da tool (ex.: navigate)
         │ executa via chrome.tabs / chrome.scripting / chrome.debugger
         ▼
       {type:"response", id, result|error} volta pelo WS
-        → resolve o Future (websocket_server.py:482-490)
+        → resolve o Future (websocket_server.py:400-415)
         → resultado sobe a pilha até types.TextContent no stdio
 ```
 
 Erros em qualquer nível viram `TextContent` com prefixo `ERROR: [...]` — o
-handler MCP nunca propaga exceção crua (`server.py:29-32`; formatação em
+handler MCP nunca propaga exceção crua (`server.py:29-30`; formatação em
 `_format_error`, `tools.py:78-93`).
 
 ## Singletons globais e implicações
@@ -144,8 +143,8 @@ handler MCP nunca propaga exceção crua (`server.py:29-32`; formatação em
 |---|---|---|---|
 | `BrowserManager` | `__new__` com `_instance` de classe (`browser_manager.py:95,109-122`) | `browser_manager.py:1256` e `tools.py:15` | SIM — as duas atribuições retornam o MESMO objeto |
 | `ExtensionBridge` | `__new__` com `_instance` (`extension_bridge.py:21-28`) | `extension_bridge` módulo-level | SIM |
-| `WebSocketServer` | instância de módulo, sem `__new__` (`websocket_server.py:583`) | `websocket_server` | Singleton por convenção de import — nada impede segunda instância |
-| `LLMClient` | NENHUM — o comentário "Singleton instance" em `llm_client.py:100` é falso | `llm_client.py:101` E `tools.py:16` | NÃO — são DOIS objetos distintos (ver ponto fraco 5) |
+| `WebSocketServer` | instância de módulo, sem `__new__` (`websocket_server.py:498`) | `websocket_server` | Singleton por convenção de import — nada impede segunda instância |
+| `LLMClient` | NENHUM — o comentário "Singleton instance" em `llm_client.py:145` é falso | `llm_client.py:146` E `tools.py:16` | NÃO — são DOIS objetos distintos (ver ponto fraco 5) |
 
 Implicações práticas:
 
@@ -172,20 +171,20 @@ Mensagens (docstring `websocket_server.py:1-18`): entrada `identify`, `event`,
 Autenticação e origem (adicionadas no commit `cbc8e28`, P0 de segurança):
 
 - Token em `~/.mcp_browser_token` (0600), gerado com `secrets.token_urlsafe(32)`
-  (`websocket_server.py:53-67`); aceito via `Authorization: Bearer`,
-  subprotocolo `mcp-token.<token>` ou `?token=` (`websocket_server.py:241-273`).
-- Origin deve começar com `chrome-extension://` quando presente; em modo
-  restrito, origin vazio também é rejeitado (`websocket_server.py:219-239`).
-- Payload máximo 64 MiB (`websocket_server.py:49`).
+  (`websocket_server.py:40-53`); aceito via `Authorization: Bearer`,
+  subprotocolo `mcp-token.<token>` ou `?token=` (`websocket_server.py:171-190`).
+- Origin deve começar com `chrome-extension://` quando presente; origin
+  vazio é aceito (`websocket_server.py:163-165`).
+- Payload máximo 64 MiB (`websocket_server.py:36`).
 
 **Ponto fraco estrutural: broadcast sem roteamento por cliente.** Verificado
 no working tree 2026-07-13:
 
 - `command` recebido de um cliente é reenviado para TODOS os outros
-  (`websocket_server.py:471-480`).
+  (`websocket_server.py:390-398`).
 - `response` resolve o Future pendente E é reenviada para todos os outros
-  clientes (`websocket_server.py:482-496`).
-- `execute_command` faz `broadcast` do comando (`websocket_server.py:552-571`;
+  clientes (`websocket_server.py:400-415`).
+- `execute_command` faz `broadcast` do comando (`websocket_server.py:467-490`;
   `broadcast` em 509-525).
 
 Consequência: com DUAS extensões conectadas (ex.: duas janelas de Chrome com a
@@ -215,7 +214,7 @@ protocolo.
    protocolo agente↔tools.
 
 3. **Erros nunca escapam como exceção pelo stdio.** Sempre `TextContent` com
-   `ERROR: [tipo] - mensagem - sugestão` (`server.py:29-32`, `tools.py:78-93`).
+   `ERROR: [tipo] - mensagem - sugestão` (`server.py:29-30`, `tools.py:78-93`).
    Clientes MCP e o agente dependem desse formato para triagem.
 
 4. **Modos mutuamente exclusivos, um browser por processo** (seção de modos
@@ -226,19 +225,13 @@ protocolo.
 
 ### 1. O console script `browser-mcp-server` está QUEBRADO
 
-`pyproject.toml:62` declara `browser-mcp-server = "browser_mcp.server:main"`,
-mas `main` é `async def` (`server.py:49`). O wrapper de console script chama
-`sys.exit(main())` — recebe uma coroutine nunca aguardada. **Verificado
-empiricamente em 2026-07-13** executando o binário instalado no venv:
-
-```
-<coroutine object main at 0x...>
-<sys>:0: RuntimeWarning: coroutine 'main' was never awaited
-```
-
-Exit code 1, servidor nunca sobe. O caminho que FUNCIONA (verificado: servidor
-inicializa e imprime "Servidor stdio ativo") é o bloco
-`if __name__ == "__main__": asyncio.run(main())` (`server.py:86-88`):
+`pyproject.toml:62` declara `browser-mcp-server = "browser_mcp.server:main"`.
+Até 2026-07-18 isto estava quebrado: `main` era `async def`, e o wrapper síncrono
+do console script recebia uma coroutine nunca aguardada (exit 1, servidor nunca
+subia). **Corrigido:** `main` agora é síncrona (`server.py:84`) e chama
+`asyncio.run(_run_server())` (`server.py:91`), sendo `_run_server` a corrotina do
+servidor (`server.py:47`). Tanto `browser-mcp-server` quanto
+`python -m browser_mcp.server` funcionam:
 
 ```bash
 python -m browser_mcp.server
@@ -283,7 +276,7 @@ servidor aceita conexão com token+origin, faz broadcast e rejeita token errado)
 ### 4. Broadcast sem roteamento por cliente
 
 Descrito na seção do protocolo. Comandos e respostas são fan-out para todos os
-clientes conectados (`websocket_server.py:471-496,509-525`). Duplicação de
+clientes conectados (`websocket_server.py:390-415,430-443`). Duplicação de
 efeitos colaterais com >1 extensão conectada é comportamento atual, não
 hipótese.
 
@@ -291,12 +284,12 @@ hipótese.
 
 `LLMClient` NÃO tem mecanismo de singleton (sem `__new__`/`_instance`;
 verificado 2026-07-13 em `llm_client.py`). Existem duas instâncias:
-`llm_client.py:101` (inicializada por `server.py:71`) e `tools.py:16` (usada
+`llm_client.py:146` (inicializada por `server.py:71`) e `tools.py:16` (usada
 por `browser_agent_task`, que chama `await llm_client.initialize()` por conta
 própria em `tools.py:1083` — por isso funciona). Consequência: a inicialização
 feita no boot do servidor aquece um objeto que as tools nunca usam. Funciona
 por acidente de design, não por design. O comentário "Singleton instance" em
-`llm_client.py:100` é enganoso.
+`llm_client.py:145` é enganoso.
 
 ## Proveniência e manutenção
 
@@ -308,8 +301,8 @@ fato volátil (rode da raiz do repo, venv ativado onde houver `python`):
 | Contagem real de tools (runtime) | `python -c "from browser_mcp.tools import app; print(len(app.get_tools()))"` |
 | Contagem por decorator | `grep -c "^@app.tool" src/browser_mcp/tools.py` |
 | Claim desatualizado do README | `grep -n "37" README.md` |
-| Entry point quebrado (declaração) | `grep -n "browser_mcp.server:main" pyproject.toml && grep -n "async def main" src/browser_mcp/server.py` |
-| Entry point quebrado (empírico) | `browser-mcp-server; echo "exit=$?"` (espere coroutine repr + RuntimeWarning + exit 1) |
+| Console script OK (main síncrona) | `grep -n "def main" src/browser_mcp/server.py` (espere `def main() -> None`) |
+| Console script roda | `browser-mcp-server` sobe o servidor (não mais coroutine/exit 1) |
 | Invocação que funciona | `python -m browser_mcp.server` (Ctrl+C após "Servidor stdio ativo") |
 | Servidor sem dependência websockets | `grep -c "import websockets" src/browser_mcp/websocket_server.py` (espere 0) |
 | Import do servidor sem deprecação | `python -W error::DeprecationWarning -c "import browser_mcp.websocket_server"` (sem erro) |

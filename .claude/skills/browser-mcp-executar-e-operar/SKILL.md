@@ -52,18 +52,15 @@ cd /caminho/do/repo/mcp_browser
 .venv/bin/python -m browser_mcp.server
 ```
 
-### ATENÇÃO: o console script `browser-mcp-server` está quebrado
+### Console script `browser-mcp-server` (corrigido em 2026-07-18)
 
-`pyproject.toml:62` registra `browser-mcp-server = "browser_mcp.server:main"`,
-mas `main` é `async def` (`server.py:49`). O entry point chama `main()` sem
-`asyncio.run()`, o que apenas cria uma coroutine e sai imediatamente (com
-`RuntimeWarning: coroutine 'main' was never awaited`). O caminho que funciona
-é `python -m browser_mcp.server`, que passa pelo bloco
-`if __name__ == "__main__": asyncio.run(main())` (`server.py:86-88`).
-Verificado por leitura estática em 2026-07-12 — se o entry point for corrigido
-para uma função síncrona, atualize esta seção.
+`pyproject.toml:62` registra `browser-mcp-server = "browser_mcp.server:main"`.
+Até 2026-07-18 isto estava **quebrado**: `main` era `async def`, então o entry
+point síncrono só criava uma coroutine e saía. Foi corrigido — hoje `main` é
+**síncrona** (`server.py:84`) e faz `asyncio.run(_run_server())` (`server.py:91`).
+Tanto `browser-mcp-server` quanto `python -m browser_mcp.server` funcionam.
 
-### O que o startup faz, na ordem (server.py:49-83)
+### O que o startup faz, na ordem (server.py:47-77)
 
 1. Registra handlers de SIGINT/SIGTERM para shutdown gracioso
    (`browser_manager.stop()` → `websocket_server.stop()` → `sys.exit(0)`).
@@ -75,7 +72,7 @@ para uma função síncrona, atualize esta seção.
    extensão.
 5. Abre o `stdio_server` MCP e fica aguardando o client.
 
-**Ponto crítico (server.py:68-75):** os passos 2-4 estão num único
+**Ponto crítico (server.py:65-73):** os passos 2-4 estão num único
 `try/except` tratado como *inicialização opcional*. Se qualquer um falhar, o
 servidor imprime apenas `[SERVER] Aviso: Falha na inicialização opcional: ...`
 em stderr e **segue rodando** o stdio server. Ou seja: o servidor MCP pode
@@ -206,18 +203,18 @@ comando contenha essa string.
 
 ### Passo 3: token de autenticação
 
-O WS server exige token em **todas** as conexões (não só em modo restrito).
+O WS server exige token em **todas** as conexões.
 
-- Geração (websocket_server.py:53-67): na primeira subida, se
+- Geração (websocket_server.py:40-53): na primeira subida, se
   `~/.mcp_browser_token` não existe, gera `secrets.token_urlsafe(32)`, grava
   no arquivo com `chmod 0600` e loga `[WS-SERVER] Token gerado em ...`.
   Subidas seguintes reutilizam o arquivo (e re-forçam 0600).
-- O handshake aceita o token de 3 formas (websocket_server.py:241-257):
+- O handshake aceita o token de 3 formas (websocket_server.py:171-190):
   header `Authorization: Bearer <token>`, subprotocolo
   `Sec-WebSocket-Protocol: mcp-token.<token>`, ou query `?token=<token>`.
   Comparação via `hmac.compare_digest`; falha → HTTP 401.
 - Origin: se o header `Origin` vier preenchido e não começar com
-  `chrome-extension://`, a conexão recebe 403 (websocket_server.py:219-239).
+  `chrome-extension://`, a conexão recebe 403 (websocket_server.py:163-165).
 - A extensão lê o token de `chrome.storage.local` (chave `mcpToken`,
   extension/background.js:28-48) e conecta com `?token=`. Cole o conteúdo de
   `~/.mcp_browser_token` no popup/options da extensão; sem token ela loga
@@ -241,9 +238,9 @@ default também respeita `EXTENSION_WS_URL`, browser_manager.py:40). Para
 voltar ao Playwright: `browser_disconnect_extension`.
 
 Limites de operação: `MAX_PAYLOAD_SIZE` de 64 MiB por frame — payloads
-maiores derrubam a conexão (websocket_server.py:49, 371-376). Comandos para a
+maiores derrubam a conexão (websocket_server.py:36, 290-292). Comandos para a
 extensão têm timeout default de 10s (`execute_command`,
-websocket_server.py:552).
+websocket_server.py:467).
 
 ---
 
@@ -281,10 +278,10 @@ O que ele faz (ws_client.py:9-33): conecta em `ws://localhost:8765` com a lib
 problemas verificados por leitura:
 
 1. Não envia token — o handshake do servidor responde 401 e a conexão morre
-   (websocket_server.py:259).
+   (websocket_server.py:189).
 2. A mensagem não tem campo `"type"` — `_handle_message` só roteia mensagens
    com `type` (`hello`, `identify`, `event`, `request`, `command`,
-   `response`, `ping`/`pong`; websocket_server.py:418-503), então mesmo
+   `response`, `ping`/`pong`; websocket_server.py:337-464), então mesmo
    autenticado o servidor ignoraria o payload.
 
 Para teste manual hoje, conecte com
@@ -315,10 +312,9 @@ pronta.
 
 Fatos datados de 2026-07-18. Re-verificações de uma linha:
 
-- Startup e falha "opcional": ler `src/browser_mcp/server.py:68-75`.
-- Console script quebrado: `pyproject.toml:62` aponta para `main` e
-  `server.py:49` ainda é `async def main` → segue quebrado.
-- Token: `grep -n "_load_or_create_token" src/browser_mcp/websocket_server.py` (linhas 53-67).
+- Startup e falha "opcional": ler `src/browser_mcp/server.py:65-73`.
+- Console script OK: `main` é síncrona (`grep -n "def main" src/browser_mcp/server.py` → `def main() -> None` em :84).
+- Token: `grep -n "_load_or_create_token" src/browser_mcp/websocket_server.py` (linhas 40-53).
 - Porta/limite WS: `grep -n "MAX_PAYLOAD_SIZE\|port: int" src/browser_mcp/websocket_server.py` (64 MiB, 8765).
 - Nº de tools: `grep -c '^@app.tool' src/browser_mcp/tools.py` → **39**
   (sem a âncora `^` dá 41 por contar 2 docstrings).

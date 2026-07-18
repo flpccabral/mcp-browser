@@ -17,7 +17,6 @@ Uso:
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 
 # Variáveis que o código REALMENTE lê. (var, default, onde: file:line)
@@ -31,10 +30,10 @@ READ_VARS: list[tuple[str, str, str]] = [
     ("ENABLE_VISUAL_INDICATOR", "true", "browser_manager.py:41"),
     ("STEALTH_MODE", "true", "browser_manager.py:42"),
     ("BROWSER_MCP_DOWNLOAD_DIR", "<tmp>/browser_mcp_downloads", "browser_manager.py:910"),
-    ("LLM_PROVIDER", "deepseek", "llm_client.py:18"),
-    ("LLM_API_KEY", "", "llm_client.py:19"),
-    ("LLM_MODEL", "<provider default>", "llm_client.py:20"),
-    ("LLM_BASE_URL", "<provider default>", "llm_client.py:21"),
+    ("LLM_PROVIDER", "deepseek", "llm_client.py:26"),
+    ("LLM_API_KEY", "", "llm_client.py:27"),
+    ("LLM_MODEL", "<provider default>", "llm_client.py:28"),
+    ("LLM_BASE_URL", "<provider default>", "llm_client.py:29"),
 ]
 
 # Nomes documentados em .env.example que o código NÃO lê (2026-07-13).
