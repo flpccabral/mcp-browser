@@ -2,6 +2,7 @@
   "name": "MCP Browser Bridge",
   "version": "1.0.0",
   "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsxopODHHY/cxXcA98dc9rKvEg2w47KESaqZUc1K5srY1b2YMwVMCq6l1c+hZKW+svzVL2DAB62rnEdts/BaLH+ulMlC1HwGB2Mw3ExrXyOaO/pJ5MJduv3WfsUrNd4Ay3BaX8DUIoVaHx+cz0WgujhVCxEjvx9/bEPB7hgznYxCpnJXIhtZPiKSK4dYRZiSG1CxBUt0WgZaGnC3Tt0dekm6Pnode/pZ8H1R4Uhf3aaTf+/MekFUBh6c0smGeZYD52LRCayJ9hDAvLTUoA4iF8YFXsjXMmTN5KPqndqiVBfVLKX4XIV6pL4h/r6y3AwR+VMD6rmIQYddjjLo/i6S1wwIDAQAB",
   "description": "Bridge entre o browser real do usuário e o MCP Browser Server via WebSocket",
   "permissions": [
     "activeTab",
@@ -20,8 +21,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_start",
       "all_frames": false
     }
@@ -42,8 +47,12 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["injected.js"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "injected.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }
