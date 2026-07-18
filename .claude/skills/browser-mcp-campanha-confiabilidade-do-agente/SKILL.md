@@ -25,10 +25,12 @@ CONFIABILIDADE do agente (`src/browser_mcp/agent.py`, classe `BrowserAgent`, loo
 melhorou" por um número.
 
 **Linha de base estabelecida em 2026-07-18** (ver `baseline-2026-07-18.md`):
-5/7 (71%) no conjunto offline, estável; **0 incidentes de parse** (Fase 1
-desnecessária); as 2 falhas são a cascata AJAX. A Fase 2 (retry/backoff) já foi
-implementada e elimina a classe de falha 429/5xx, mas o delta de sucesso limpo
-ainda depende de uma medição num provedor sem rate limit agressivo.
+com provedor rápido e sem rate limit (`gemma4:31b-cloud`), **7/7 (100%) estável**
+no conjunto offline, 0 incidentes de parse. A "não-confiabilidade" dos runs
+anteriores (Ollama lento, NVIDIA free rate-limited) era **confound de provedor**,
+não defeito do agente. Fase 1 desnecessária; Fase 2 (retry/backoff) implementada
+e validada como upside puro; o conjunto de 7 tarefas está saturado — a próxima
+alavanca é **ampliar o benchmark com tarefas mais difíceis** para achar o teto real.
 
 ## Regra de ouro (leia antes de qualquer coisa)
 
@@ -119,8 +121,10 @@ então não depende do server. Não "conserte" isso dentro da campanha de confia
 O harness é `scripts/benchmark_agent.py` (decisão de manutenção documentada no
 fim). A linha de base foi rodada e registrada em **`baseline-2026-07-18.md`** —
 leia-o antes de qualquer mudança no agente; é a régua de todas as fases.
-Resumo: **5/7 (71%) estável, 0 incidentes de parse**. Re-rode o harness para
-atualizar a régua quando o agente mudar.
+Resumo: **7/7 (100%) estável, 0 incidentes de parse** (provedor rápido sem rate
+limit). O conjunto de 7 tarefas está saturado — para a campanha seguir tendo
+régua útil, amplie o benchmark com tarefas mais difíceis. Re-rode o harness ao
+mudar o agente.
 
 ### O que o harness mede
 
