@@ -88,14 +88,12 @@ valores possíveis `"playwright" | "extension" | "cdp"`
 | `extension` | tool `browser_connect_to_extension` → `connect_to_extension(ws_url)` (`browser_manager.py:254`); URL default `ws://localhost:8765` via env `EXTENSION_WS_URL` (`browser_manager.py:40`) | Extensão Chrome MV3 conectada por WebSocket executa os comandos no browser REAL do usuário | Ver abaixo |
 
 **Por que o modo extensão existe.** Nasceu de um benchmark contra o Kimi
-WebBridge documentado em `analise_extensao_necessaria.md` no commit raiz
-`cbc8e28` (arquivo depois removido do working tree; recupere com
-`git show cbc8e28:analise_extensao_necessaria.md`). Conclusão textual do
-documento (linha 65): o Kimi WebBridge "permite que o agente use a **sessão
-logada do usuário** — algo que o Playwright em modo isolado não faz". Ou seja:
-sites com login do usuário eram o gap ("❌ Não consegue" vs "✅ Usa sessão
-real", linha 171 do mesmo documento). O modo extensão opera na sessão real —
-cookies, localStorage e login do usuário — sem exportar credenciais.
+WebBridge, documentado em `aprendizado_webbridge.md` no commit raiz `cbc8e28`
+(recupere com `git show cbc8e28:aprendizado_webbridge.md`). A conclusão: o
+WebBridge permite que o agente use a **sessão logada do usuário** — algo que o
+Playwright em modo isolado não faz. Sites com login do usuário eram o gap. O
+modo extensão opera na sessão real — cookies, localStorage e login do usuário —
+sem exportar credenciais.
 
 Entrar em modo extensão FECHA o Playwright se estiver rodando
 (`browser_manager.py:261-277`) e `start()` vira no-op enquanto
@@ -330,7 +328,7 @@ fato volátil (rode da raiz do repo, venv ativado onde houver `python`):
 | Broadcast sem roteamento | `grep -n 'msg_type == "command"' src/browser_mcp/websocket_server.py` |
 | Singleton BrowserManager | `grep -n "__new__" src/browser_mcp/browser_manager.py` |
 | LLMClient sem singleton | `grep -cE "__new__|_instance" src/browser_mcp/llm_client.py` (espere 0) |
-| Origem do modo extensão (Kimi WebBridge) | `git show cbc8e28:analise_extensao_necessaria.md \| grep -n "Kimi WebBridge"` |
+| Origem do modo extensão (Kimi WebBridge) | `git show cbc8e28:aprendizado_webbridge.md \| grep -n "sessão"` |
 | Actions da extensão | `grep -c "case '" extension/background.js` (23 em 2026-07-18) |
 | Permissions MV3 | `grep -n -A9 '"permissions"' extension/manifest.json` |
 | Suíte de testes | `python -m pytest tests/ -q` (43 testes coletados em 2026-07-18) |

@@ -116,11 +116,11 @@ EOF
 
 | Hipótese | Causa provável | Como discriminar | Referência |
 |---|---|---|---|
-| A | Cascata AJAX: o dropdown só popula depois de um request disparado pelo campo anterior | Network log mostra o request dependente (ou a ausência dele) | história i-Educar abaixo |
+| A | Cascata AJAX: o dropdown só popula depois de um request disparado pelo campo anterior | Network log mostra o request dependente (ou a ausência dele) | experimento abaixo |
 | B | Seletor errado / elemento nunca existirá | `browser_get_content` com `as_html=true` no container pai | `tools.py:606` |
 | C | Timeout curto demais para o backend lento | Repetir com `timeout` maior no `browser_wait` | `browser_manager.py:1008-1041`, default `BROWSER_TIMEOUT=30000` (`browser_manager.py:39`) |
 
-**História (i-Educar, custou uma investigação inteira).** No diário de classe do i-Educar, os filtros Escola → Curso → Série → Turma → Etapa → Componente são dependentes: cada `change` dispara um GET para `/module/DynamicInput/*` (Curso, serie, turma, Etapa, componenteCurricular) e o JSON de resposta (`options`) popula o próximo `<select>`. Selecionar Turma antes do AJAX de Série terminar = dropdown vazio ou timeout. Pior: a base demo às vezes retornava `matriculas: []` — ou seja, o dropdown vazio era **dado real**, não bug de timing. A única forma de distinguir foi OLHAR a chamada AJAX em vez de adivinhar. Fonte completa: `git show cbc8e28:relatorio_ieducar.md` (tabela de endpoints na seção 3).
+**Padrão (dropdowns dependentes / cascata AJAX).** Em formulários com `<select>` encadeados, cada `change` num campo dispara um GET/POST cujo JSON de resposta popula o próximo `<select>`. Selecionar o campo seguinte antes do AJAX anterior terminar = dropdown vazio ou timeout. Armadilha extra: às vezes a resposta vem legitimamente **vazia** (o backend não tem dados para aquela combinação) — o dropdown vazio é **dado real**, não bug de timing. A única forma de distinguir é OLHAR a chamada AJAX em vez de adivinhar.
 
 **Experimento discriminatório (timing A vs dado-vazio vs seletor B):**
 
@@ -129,17 +129,17 @@ EOF
 browser_network_start {}
 
 # 2. Faça a ação que deveria popular o dropdown:
-browser_select_option {"selector": "#escola", "value": "481777"}
+browser_select_option {"selector": "#campo_pai", "value": "<valor>"}
 
 # 3. Espere a rede assentar (não use sleep cego):
 browser_wait {"condition": "network_idle", "timeout": 15000}
 
 # 4. VEJA a chamada em vez de adivinhar:
-browser_get_network_log {"filter_url": "DynamicInput"}
+browser_get_network_log {"filter_url": "<trecho-do-endpoint>"}
 ```
 
-- Request aparece e a resposta tem `options` preenchido → era timing (causa A): passe a usar `browser_wait` com `network_idle` ou `element_visible` entre cada filtro.
-- Request aparece com `options`/`matriculas` vazio → o backend não tem dados; nenhum wait resolve.
+- Request aparece e a resposta tem os itens preenchidos → era timing (causa A): passe a usar `browser_wait` com `network_idle` ou `element_visible` entre cada campo.
+- Request aparece com a lista vazia → o backend não tem dados; nenhum wait resolve.
 - Request NÃO aparece → seu `select`/`click` não disparou o evento `change` (volte ao sintoma 1) ou o seletor está errado (causa B).
 
 Condições suportadas por `browser_wait`: `element_visible`, `element_hidden`, `network_idle`, `timeout` (`browser_manager.py:1020-1041`; tool em `tools.py:952-989`). Tools de rede: `browser_network_start/stop/list/clear` (`tools.py:748-842`) e `browser_get_network_log` (`tools.py:849`).
@@ -240,6 +240,6 @@ Em 2026-07-17, a suíte é `tests/test_agent.py`, `test_smoke.py`, `test_tools.p
 ## Proveniência e manutenção
 
 - **Fontes primárias (todas verificadas em 2026-07-17):** `src/browser_mcp/server.py`, `tools.py`, `browser_manager.py`, `agent.py`, `extension_bridge.py`, `websocket_server.py`, `visual_indicator.py`, `extension/background.js`, `tests/test_agent.py`.
-- **Docs históricos (recuperáveis do commit `cbc8e28`):** `git show cbc8e28:relatorio_ieducar.md` (cascatas AJAX), `git show cbc8e28:investigacao_indicadores_visuais.md` (overlay/CSP), `git show cbc8e28:aprendizado_webbridge.md` (@e refs, network monitoring), `git show cbc8e28:analise_extensao_necessaria.md` (por que existe a extensão). O próprio commit: `git show cbc8e28 --stat`.
+- **Docs históricos (recuperáveis do commit `cbc8e28`):** `git show cbc8e28:investigacao_indicadores_visuais.md` (overlay/CSP), `git show cbc8e28:aprendizado_webbridge.md` (@e refs, network monitoring). O próprio commit: `git show cbc8e28 --stat`.
 - **Volatilidade:** todos os `file:line` datam de 2026-07-18 — re-verifique com `grep -n` antes de citar. Ao mover código, atualize esta skill junto (processo em `browser-mcp-controle-de-mudancas`).
 - **Skills irmãs citadas:** `browser-mcp-build-e-ambiente`, `browser-mcp-executar-e-operar`, `browser-mcp-config-e-flags`, `browser-mcp-arqueologia-de-falhas`, `browser-mcp-diagnosticos-e-ferramentas`, `browser-automacao-referencia`, `browser-mcp-campanha-confiabilidade-do-agente`, `browser-mcp-validacao-e-qa`, `browser-mcp-controle-de-mudancas`, `browser-mcp-contrato-de-arquitetura`.

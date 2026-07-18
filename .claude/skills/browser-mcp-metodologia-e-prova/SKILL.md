@@ -10,7 +10,7 @@ description: >-
   prova com exemplos resolvidos da história deste repo: experimento
   discriminatório (regra do click com isTrusted), teste adversarial (autenticação
   do WebSocket bridge), medição de linha de base,
-  observação de rede (mapeamento i-Educar /module/DynamicInput/*), verificação
+  observação de rede (mapear endpoints AJAX de dropdowns em cascata), verificação
   de alegação documental (README "37 tools" vs contagem real via grep ancorado)
   e refutação designada. Use ao decidir se a evidência é suficiente, ao desenhar
   um experimento, ou ao revisar uma alegação como "melhorou" ou "é seguro".
@@ -108,15 +108,14 @@ não no caminho padrão de todo teste.
 
 ## A.4 De onde boas ideias vieram historicamente AQUI
 
-Três fontes comprovadas, cada uma com o documento histórico verificável:
+Duas fontes comprovadas, cada uma com o documento histórico verificável:
 
 | Fonte de ideia | Caso real | Resultado no produto | Verifique com |
 |---|---|---|---|
 | **Benchmarking de concorrente** | Estudo do Kimi WebBridge: accessibility tree com refs `@e`, sessão do browser REAL do usuário, network monitoring nativo | Refs `@e` no agente (regra 1 do system prompt, `src/browser_mcp/agent.py:30`), modo extensão/browser do usuário | `git show cbc8e28:aprendizado_webbridge.md` |
-| **Investigação estruturada multi-vetor** | Indicadores visuais (2026-07-01): três vetores — pesquisa web + análise prática com WebBridge + análise de arquiteturas — cobrindo cinco agentes/distribuições (Kimi WebBridge, Claude Desktop, Gemini CLI, cdpilot, OpenClaw, Browser-Use) | Decisão fundamentada com tabela comparativa: CDP `Runtime.evaluate` + CSS injection (não requer extensão, qualquer Chromium, `pointer-events: none`) | `git show cbc8e28:investigacao_indicadores_visuais.md` |
-| **Investigação empírica de site real** | i-Educar: login, navegação, preenchimento de filtros em cascata com observação de rede | Mapa completo dos endpoints `/module/DynamicInput/*` (receita B.4); recomendações de robustez (navegação direta por URL, interceptors HTTP) | `git show cbc8e28:relatorio_ieducar.md` |
+| **Investigação estruturada multi-vetor** | Indicadores visuais (2026-07-01): três vetores — pesquisa web + análise prática + análise de arquiteturas — cobrindo cinco agentes/distribuições (Kimi WebBridge, Claude Desktop, Gemini CLI, cdpilot, OpenClaw, Browser-Use) | Decisão fundamentada com tabela comparativa: CDP `Runtime.evaluate` + CSS injection (não requer extensão, qualquer Chromium, `pointer-events: none`) | `git show cbc8e28:investigacao_indicadores_visuais.md` |
 
-Padrão comum às três: nenhuma partiu de opinião. Todas produziram um
+Padrão comum às duas: nenhuma partiu de opinião. Ambas produziram um
 **documento com evidência** antes de qualquer código.
 
 ---
@@ -243,26 +242,16 @@ supor a partir do HTML.
 4. Valide o mapa reproduzindo uma chamada fora da UI (ou prevendo a próxima
    chamada antes de interagir — A.2).
 
-**Exemplo resolvido — mapeamento do i-Educar
-(`git show cbc8e28:relatorio_ieducar.md`, seção 3):**
-
-Preenchendo os filtros em cascata do Diário de Classe com monitoramento de
-rede ativo, o agente mapeou o padrão completo `/module/DynamicInput/*`:
-
-| Etapa do filtro | Endpoint | Parâmetros principais |
-|---|---|---|
-| Curso | `GET /module/DynamicInput/Curso` | `resource=cursos`, `escola_id` |
-| Série | `GET /module/DynamicInput/serie` | `resource=series`, `curso_id`, `escola_id` |
-| Turma | `GET /module/DynamicInput/turma` | `resource=turmas`, `serie_id`, `curso_id` |
-| Etapa | `GET /module/DynamicInput/Etapa` | `resource=etapas`, `turma_id`, `curso_id` |
-| Componente Curricular | `GET /module/DynamicInput/componenteCurricular` | `resource=componentesCurricularesForDiario`, `etapa`, `turma_id` |
-| Diário (alunos) | `GET /module/Avaliacao/diarioApi` | `resource=matriculas`, `componente_curricular_id`, `turma_id`, `etapa` |
-
-Nenhuma dessas rotas está documentada publicamente — o mapa saiu inteiro da
-observação de tráfego. O relatório também registrou a observação negativa
-(A.1): combinações de filtros da base demo retornavam `matriculas: []`,
-o que explicou por que a tabela de edição não aparecia — sem essa observação,
-a conclusão errada seria "o click no botão Carregar falhou".
+**Aplicação típica — dropdowns em cascata.** Em formulários com `<select>`
+encadeados, cada seleção dispara uma chamada AJAX cujo retorno popula o próximo
+campo. Com monitoramento de rede ativo, uma interação por vez, você monta a
+tabela endpoint → método → parâmetros → formato de resposta sem depender de
+documentação pública do site. O passo a passo copiável está em
+`browser-mcp-diagnosticos-e-ferramentas` ("achar a chamada AJAX que popula um
+dropdown"). Registre também a **observação negativa**: se a resposta vem
+legitimamente vazia (o backend não tem dados para aquela combinação), o
+resultado vazio é dado real — sem essa observação, a conclusão errada seria
+"o clique falhou".
 
 ## B.5 Prova de alegação documental
 
@@ -376,8 +365,6 @@ designada.
   (refs `@e`, sessão real do usuário, network nativo).
 - `git show cbc8e28:investigacao_indicadores_visuais.md` — investigação
   multi-vetor de 2026-07-01, decisão CDP + CSS injection.
-- `git show cbc8e28:relatorio_ieducar.md` — tabela de endpoints
-  `/module/DynamicInput/*`.
 - `git show cbc8e28 --no-patch` — mensagem do commit ("43/43 pytest
   passing"; "Code review by Claude Fable 5").
 - `grep -c '^@app.tool' src/browser_mcp/tools.py` → **39** em 2026-07-18,

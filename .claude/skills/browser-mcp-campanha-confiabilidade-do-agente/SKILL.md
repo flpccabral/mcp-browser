@@ -43,7 +43,7 @@ critério é: **sem novas regressões além dessa flakiness conhecida de rede**,
   timeout esperando elemento) → `[[browser-mcp-playbook-de-depuracao]]` (triagem
   sintoma→causa). Esta skill é campanha sistemática, não triagem.
 - **Você quer entender POR QUE o agente é assim** (isTrusted, @e refs, histórico
-  i-Educar) → `[[browser-mcp-arqueologia-de-falhas]]` e `[[browser-automacao-referencia]]`.
+  de design) → `[[browser-mcp-arqueologia-de-falhas]]` e `[[browser-automacao-referencia]]`.
 - **Você vai só rodar o servidor / conectar extensão** → `[[browser-mcp-executar-e-operar]]`.
 - **Você quer comparar com concorrentes ou escrever claim público** →
   `[[browser-mcp-fronteira-e-posicionamento]]`.
@@ -138,14 +138,14 @@ linha de base estável.
 
 Servidas por `http.server` embutido (`benchmark_agent.py::start_fixture_server`)
 a partir de `scripts/fixtures/` (HTML local). Cobrem os modos de falha que importam,
-incluindo cascata AJAX (o modo de falha histórico do i-Educar — selects populados
+incluindo cascata AJAX (dropdowns dependentes — selects populados
 por AJAX em sequência, cada um só carrega depois do anterior):
 
 - `extract_code`, `extract_table` — extração estática (texto e célula de tabela).
 - `login_ok` — preencher 2 campos + submit + verificar.
 - `search_filter`, `multi_step_price` — digitar + clicar + ler resultado dinâmico.
-- `cascade_fast` (`?delay=300`), `cascade_slow` (`?delay=2500`) — **cascata AJAX**,
-  estressam `browser_wait`/`network_idle`. Reproduzem o i-Educar em laboratório.
+- `cascade_fast` (`?delay=300`), `cascade_slow` (`?delay=2500`) — **cascata AJAX**
+  (país→estado→cidade), estressam `browser_wait`/`network_idle`.
 - `example_com` — única tarefa com rede real (site externo estável). Omitível com
   `--offline` para uma linha de base 100% local e determinística.
 
@@ -325,7 +325,7 @@ Ordenado por (retorno provável ÷ custo), com pré-requisito de análise. Nenhu
   campanha exige.
 - **Fixtures batem com os `check`:** os valores esperados existem no HTML —
   `FX-7731-KappaBravo` e `87.310` (extract_fact.html), `LOGIN_OK` (form_login.html),
-  `22,90` (search_list.html), `MATRICULA_OK` (cascade_ajax.html). Todas as
+  `22,90` (search_list.html), `ENDERECO_OK` (cascade_ajax.html). Todas as
   `?delay=` da cascata são reais.
 - **Só usa API existente de `BrowserManager`:** `start`/`stop`/`navigate`/
   `get_content`/`get_pending_network_count` (verificados em `browser_manager.py`).
@@ -359,7 +359,7 @@ Nenhuma outra alteração no comportamento.
   `[[browser-mcp-contrato-de-arquitetura]]` (singleton duplicado),
   `[[browser-mcp-metodologia-e-prova]]` (preveja números antes),
   `[[browser-mcp-playbook-de-depuracao]]` (triagem pontual),
-  `[[browser-mcp-arqueologia-de-falhas]]` (isTrusted, i-Educar),
+  `[[browser-mcp-arqueologia-de-falhas]]` (isTrusted, decisões de design),
   `[[browser-automacao-referencia]]` (teoria isTrusted/a11y),
   `[[browser-mcp-config-e-flags]]` (LLM_*), `[[browser-mcp-build-e-ambiente]]` (venv),
   `[[browser-mcp-fronteira-e-posicionamento]]` (SOTA/claims).

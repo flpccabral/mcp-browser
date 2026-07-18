@@ -4,7 +4,7 @@ description: >
   Como MEDIR em vez de olhar no MCP Browser: catálogo das ferramentas de diagnóstico e
   como interpretar a saída. Use quando precisar: capturar tráfego de rede (network log,
   browser_network_start/stop/list/clear, browser_get_network_log, exportar HAR),
-  achar a chamada AJAX que popula um dropdown ou cascata (caso i-Educar), ler console
+  achar a chamada AJAX que popula um dropdown ou cascata, ler console
   errors (browser_get_console_errors, erros GraphQL/React), despejar o accessibility tree
   e usar refs @e, listar elementos interativos, entender por que um elemento NÃO aparece,
   usar o ws_client.py manual, ler logs de stderr, listar as ferramentas registradas,
@@ -23,7 +23,7 @@ Regra de ouro: **antes de propor uma causa, produza uma medição que a discrimi
 - **Algo QUEBROU e você quer triar o sintoma** (click não funciona, extensão não conecta, timeout) → `browser-mcp-playbook-de-depuracao` (ele *usa* estes instrumentos na triagem).
 - **Teoria por trás de CDP/CSP/isTrusted/accessibility/MV3** → `browser-automacao-referencia`.
 - **Significado/default de cada env var** → `browser-mcp-config-e-flags` (aqui só damos o script `check_env.py` que mostra o valor efetivo).
-- **A crônica de por que o i-Educar/console/overlay são assim** → `browser-mcp-arqueologia-de-falhas`.
+- **A crônica de por que o console/overlay/extensão são assim** → `browser-mcp-arqueologia-de-falhas`.
 - **Como provar uma alegação com rigor** → `browser-mcp-metodologia-e-prova`.
 
 ---
@@ -68,9 +68,9 @@ As tools de rede funcionam nos dois modos, mas por caminhos diferentes:
 
 Ambos `network_list` e `get_network_log` aceitam `filter_url` (substring, `network.py:150`) e `filter_method` (igualdade, **case-insensitive via `.upper()`**, `network.py:152`). Não há filtro por status.
 
-### Receita: achar a chamada AJAX que popula um dropdown (caso i-Educar)
+### Receita: achar a chamada AJAX que popula um dropdown
 
-O caso clássico deste repo: um `<select>` dependente que só carrega options após você mudar o `<select>` pai, via uma cascata AJAX. Para descobrir o endpoint:
+Caso clássico de automação: um `<select>` dependente que só carrega options após você mudar o `<select>` pai, via uma cascata AJAX. Para descobrir o endpoint:
 
 ```
 1. browser_network_start
@@ -82,7 +82,6 @@ O caso clássico deste repo: um `<select>` dependente que só carrega options ap
 
 **Como ler:** ordene mentalmente por `timestamp` (`network.py:90`); o request que interessa é o disparado **logo após** a sua ação. Confirme por três sinais no JSON: (a) `resource_type` costuma ser `xhr`/`fetch`; (b) o `response_body` contém as `<option>` ou o JSON com os itens que apareceram; (c) o `post_data` mostra o valor do pai que você selecionou. Anote a `url` e o `method` — é o contrato do endpoint. Se o `response_body` vier `null`, o body pode ter falhado na captura (`network.py:136-137`) ou excedido o truncamento; caia para o HAR ou re-rode.
 
-> A arqueologia deste mapeamento (endpoints `/module/DynamicInput/*` do i-Educar) está em `browser-mcp-arqueologia-de-falhas`; aqui só damos o método de medição.
 
 ### Ler o HAR
 

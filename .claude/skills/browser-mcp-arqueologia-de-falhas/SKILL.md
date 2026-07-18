@@ -1,6 +1,6 @@
 ---
 name: browser-mcp-arqueologia-de-falhas
-description: A crônica do mcp_browser — por que o projeto é como é. Consulte antes de investigar qualquer comportamento estranho, propor mudança de design ou reabrir uma discussão. Cobre histórico de investigações (i-Educar, Kimi WebBridge, indicadores visuais), becos sem saída (isTrusted em eventos sintéticos), incidentes (chave privada extension.pem vazada e purgada com filter-repo), decisões de design (modo extensão, @e refs, overlay CSS), dívidas conhecidas (lint) e o que cada fix P0 corrigiu. Gatilhos: "por que isso existe?", "já foi tentado?", "qual o histórico disso?", "houve algum incidente?", "de onde veio essa decisão?", "por que os hashes mudaram?", "por que JS não pode clicar?".
+description: A crônica do mcp_browser — por que o projeto é como é. Consulte antes de investigar qualquer comportamento estranho, propor mudança de design ou reabrir uma discussão. Cobre histórico de investigações (benchmark Kimi WebBridge, indicadores visuais), becos sem saída (isTrusted em eventos sintéticos), incidentes (chave privada extension.pem vazada e purgada com filter-repo), decisões de design (modo extensão, @e refs, overlay CSS), dívidas conhecidas (lint) e o que cada fix P0 corrigiu. Gatilhos: "por que isso existe?", "já foi tentado?", "qual o histórico disso?", "houve algum incidente?", "de onde veio essa decisão?", "por que os hashes mudaram?", "por que JS não pode clicar?".
 ---
 
 # Arqueologia de Falhas — mcp_browser
@@ -17,63 +17,29 @@ Regras de leitura:
 
 | # | Entrada | Data | Status |
 |---|---------|------|--------|
-| 1 | Investigação i-Educar (origem do projeto) | ~2026-06/07 | resolvido |
-| 2 | Benchmark Kimi WebBridge → decisões de arquitetura | ~2026-06/07 | resolvido |
-| 3 | Investigação de indicadores visuais | 2026-07-01 | resolvido |
-| 4 | Descoberta isTrusted (eventos sintéticos) | ≤2026-07-10 | **cercado** |
-| 5 | Commit P0 `cbc8e28` — os 4 fixes | 2026-07-10 | resolvido |
-| 6 | Incidente da chave privada `extension.pem` | 2026-07-12 | **aberto** (regenerar chave) |
-| 7 | Estado do lint | 2026-07-12 | resolvido (dívida quitada; escopo do CI limpo) |
+| 1 | Benchmark Kimi WebBridge → decisões de arquitetura | ~2026-06/07 | resolvido |
+| 2 | Investigação de indicadores visuais | 2026-07-01 | resolvido |
+| 3 | Descoberta isTrusted (eventos sintéticos) | ≤2026-07-10 | **cercado** |
+| 4 | Commit P0 `cbc8e28` — os 4 fixes | 2026-07-10 | resolvido |
+| 5 | Incidente da chave privada `extension.pem` | 2026-07-12 | **aberto** (regenerar chave) |
+| 6 | Estado do lint | 2026-07-12 | resolvido (dívida quitada; escopo do CI limpo) |
 
 ---
 
-## 1. Investigação i-Educar — a origem do projeto (~junho/julho 2026)
+## 1. Benchmark Kimi WebBridge → decisões de arquitetura (~junho/julho 2026)
 
-**Sintoma/Pergunta:** É possível automatizar o Diário de Classe (Lançamento de Faltas e Notas) do i-Educar com um agente de browser? Por que a automação "simples" com seletores CSS falha nesse sistema?
-
-**Causa raiz/Descobertas:**
-
-- O frontend (jQuery + Prototype.js, legado) popula os filtros do diário em **cascatas AJAX**: cada seleção dispara um GET que preenche o próximo dropdown. Endpoints mapeados:
-
-| Filtro | Endpoint | Parâmetros principais |
-|--------|----------|----------------------|
-| Curso | `/module/DynamicInput/Curso` | `resource=cursos`, `escola_id` |
-| Série | `/module/DynamicInput/serie` | `resource=series`, `curso_id`, `escola_id` |
-| Turma | `/module/DynamicInput/turma` | `resource=turmas`, `serie_id`, `curso_id` |
-| Etapa | `/module/DynamicInput/Etapa` | `resource=etapas`, `turma_id`, `curso_id` |
-| Componente | `/module/DynamicInput/componenteCurricular` | `resource=componentesCurricularesForDiario`, `etapa`, `turma_id` |
-| Alunos | `/module/Avaliacao/diarioApi` | `resource=matriculas`, `componente_curricular_id`, `turma_id`, `etapa` |
-
-- Todas respondem JSON padronizado com as opções do `<select>` na chave `options`.
-- **IDs dinâmicos**: `turma_id`, `escola_id` etc. variam no backend — nunca hardcode; intercepte o AJAX para descobri-los em runtime.
-- **Menus hover assíncronos**: a navegação "Escola > Lançamentos > Faltas e notas" pela barra lateral é frágil (hover + click assíncronos). Solução adotada: **URL direta** `/module/Avaliacao/diario` após o login.
-- **Base demo sem alunos**: em várias combinações de filtros a busca retorna `"matriculas": []` — a base de demonstração nem sempre tem alunos vinculados às turmas. Se a tabela do diário não aparece, verifique isso ANTES de suspeitar da automação.
-
-**Evidência:**
-
-```bash
-git show cbc8e28:relatorio_ieducar.md
-```
-
-**Status: resolvido** — mapeamento completo dos endpoints documentado. Se você precisa automatizar o i-Educar, o mapa já existe; não refaça a engenharia reversa.
-
----
-
-## 2. Benchmark Kimi WebBridge → decisões de arquitetura (~junho/julho 2026)
-
-**Sintoma/Pergunta:** Por que o WebBridge da Moonshot resolvia o i-Educar melhor que nosso agente Playwright puro? O que copiar?
+**Sintoma/Pergunta:** Por que o WebBridge da Moonshot resolvia sites legados (com sessão real do usuário e dropdowns em cascata AJAX) melhor que nosso agente Playwright puro? O que copiar?
 
 **Causa raiz/Decisões geradas:**
 
 1. **`@e` refs de accessibility tree** — o WebBridge referencia elementos por refs semânticas (`@e3`) da árvore de acessibilidade, não por seletores CSS. Sobrevive a mudanças de classe/hash. Decisão: suportar `@e` refs em `browser_click`/`browser_type` e expor a árvore.
-2. **Modo extensão (sessão real do usuário)** — o WebBridge opera no perfil Chrome real do usuário (cookies, logins, extensões). Playwright isolado não faz isso. Decisão: **arquitetura híbrida** — Playwright como padrão + extensão Chrome para sessão real (detalhada em `analise_extensao_necessaria.md`).
+2. **Modo extensão (sessão real do usuário)** — o WebBridge opera no perfil Chrome real do usuário (cookies, logins, extensões). Playwright isolado não faz isso. Decisão: **arquitetura híbrida** — Playwright como padrão + extensão Chrome para sessão real.
 3. **Network monitoring nativo** — comandos `network start/list/detail` de primeira classe, em vez de interceptors manuais.
 
 **Evidência:**
 
 ```bash
 git show cbc8e28:aprendizado_webbridge.md
-git show cbc8e28:analise_extensao_necessaria.md
 ```
 
 **Status: resolvido — implementado.** Verificável no código atual:
@@ -84,11 +50,11 @@ ls src/browser_mcp/extension_bridge.py                                     # mod
 grep -n '"ref"' src/browser_mcp/agent.py                                   # @e refs nas tools
 ```
 
-Não proponha "migrar tudo para Playwright puro" nem "abandonar a extensão" sem reler esses dois documentos: a extensão existe **por causa** da sessão real do usuário, não por acidente.
+Não proponha "migrar tudo para Playwright puro" nem "abandonar a extensão" sem antes entender isto: a extensão existe **por causa** da sessão real do usuário, não por acidente.
 
 ---
 
-## 3. Investigação de indicadores visuais (2026-07-01)
+## 2. Investigação de indicadores visuais (2026-07-01)
 
 **Sintoma/Pergunta:** Como mostrar ao usuário que o agente está controlando o browser dele? Como os concorrentes fazem?
 
@@ -118,7 +84,7 @@ grep -n "__mcp_browser_overlay" src/browser_mcp/visual_indicator.py
 
 ---
 
-## 4. Descoberta isTrusted — beco sem saída CERCADO (≤ 2026-07-10)
+## 3. Descoberta isTrusted — beco sem saída CERCADO (≤ 2026-07-10)
 
 **Sintoma:** Cliques feitos via `browser_execute_javascript` (`element.click()`) "funcionam" localmente mas são **ignorados silenciosamente** por Google News e muitas SPAs. O agente entra em loop tentando clicar via JS.
 
@@ -139,7 +105,7 @@ grep -n "isTrusted" src/browser_mcp/agent.py
 
 ---
 
-## 5. Commit P0 `cbc8e28` — "4 P0 fixes" (2026-07-10)
+## 4. Commit P0 `cbc8e28` — "4 P0 fixes" (2026-07-10)
 
 **Sintoma/Pergunta:** O que exatamente os "4 P0 fixes — security, CSP bypass, navigate, future leak" corrigiram? Onde está cada um?
 
@@ -164,7 +130,7 @@ git show cbc8e28:extension/background.js | grep -n "evalViaDebugger\|tabs.update
 
 ---
 
-## 6. Incidente da chave privada `extension.pem` (2026-07-12)
+## 5. Incidente da chave privada `extension.pem` (2026-07-12)
 
 **Sintoma:** A chave privada de assinatura da extensão Chrome (`extension.pem`) estava **commitada no repositório** e, segundo o registro do incidente, esteve presente em **2 remotes**.
 
@@ -190,7 +156,7 @@ Note a assimetria proposital: `extension.crx` aparece no diff de `ddf9bc1` (foi 
 
 ---
 
-## 7. Estado do lint — dívida quitada (2026-07-18)
+## 6. Estado do lint — dívida quitada (2026-07-18)
 
 **Sintoma histórico:** por um período, `ruff check` e `ruff format --check` falhavam **em código já commitado** — dívida acumulada porque o CI só dispara em push/PR para `main`/`master` (`.github/workflows/ci.yml`, gatilhos nas linhas 4-7) e branches de feature não têm gate.
 
@@ -227,7 +193,7 @@ grep -n -A4 "^on:" .github/workflows/ci.yml
 - Histórico git: o commit raiz é `cbc8e28` (os 4 P0 fixes); o incidente da
   chave `.pem` foi tratado em `ddf9bc1`. Para o histórico completo e atual, rode
   `git log --oneline` — a lista cresce a cada mudança.
-- Docs históricos recuperáveis apenas via `git show cbc8e28:<arquivo>`: `relatorio_ieducar.md`, `aprendizado_webbridge.md`, `analise_extensao_necessaria.md`, `investigacao_indicadores_visuais.md`.
+- Docs históricos recuperáveis apenas via `git show cbc8e28:<arquivo>`: `aprendizado_webbridge.md` (benchmark WebBridge), `investigacao_indicadores_visuais.md` (indicadores visuais).
 - Código vivo: `src/browser_mcp/agent.py`, `websocket_server.py`, `browser_manager.py`, `visual_indicator.py`, `extension_bridge.py`, `extension/background.js`, `.github/workflows/ci.yml`, `.gitignore`.
 
 **Para listar o que aconteceu desde a última entrada desta crônica:**

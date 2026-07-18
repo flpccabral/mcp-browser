@@ -137,15 +137,14 @@ Apenas o posicionamento aqui; o plano executável (COMO) está em
 
 - **Por que o SOTA falha**: Odysseys (87.4%, 200 tarefas — 07/2026) mede
   tarefas genéricas na web moderna. Ninguém publica números em sistemas
-  legados PT-BR (jQuery, dropdowns em cascata, sessões frágeis) — que é
-  onde a automação corporativa brasileira vive.
-- **Nosso ativo**: o nicho legado PT-BR com caso público reproduzível —
-  **i-Educar** com credenciais demo `comunidade` / `Comunidade@1`
-  (verificado em `git show cbc8e28:relatorio_ieducar.md`, que documenta
-  login, filtros em cascata e endpoints AJAX do diário de classe).
+  legados (jQuery/Prototype, dropdowns em cascata AJAX, sessões frágeis) —
+  que é onde boa parte da automação corporativa vive.
+- **Nosso ativo**: o modo extensão (sessão real do usuário) + network/HAR de
+  1ª classe são exatamente as capacidades que sites legados exigem (login
+  manual reaproveitado, mapeamento de endpoints AJAX não documentados).
 - **Marco falsificável**: taxa de sucesso ≥ X% numa **suíte publicada de N
-  tarefas i-Educar, em 3 runs**, com comando + versão + data. Sem suíte
-  publicada, nenhum claim de confiabilidade.
+  tarefas contra um site legado reproduzível, em 3 runs**, com comando +
+  versão + data. Sem suíte publicada, nenhum claim de confiabilidade.
 
 ### Problema aberto #2 — Agente que gera playbooks reutilizáveis [ABERTO/CANDIDATO]
 
@@ -157,14 +156,12 @@ Apenas o posicionamento aqui; o plano executável (COMO) está em
   em artefato determinístico.
 - **Nosso ativo**: a matéria-prima já é capturada — network monitoring
   (`src/browser_mcp/tools.py:753`, `:807`, HAR `:898`) + accessibility tree
-  com @e refs (`:511`). E a **prova de conceito humana existe**:
-  `git show cbc8e28:relatorio_ieducar.md` é exatamente esse playbook, gerado
-  MANUALMENTE — tabela de endpoints `/module/DynamicInput/*` e
-  `/module/Avaliacao/diarioApi` com parâmetros e formatos de resposta.
+  com @e refs (`:511`). Um fluxo explorado uma vez tem tudo que um executor
+  determinístico precisaria: endpoints AJAX, refs de elementos e ordem de
+  preenchimento.
 - **3 primeiros passos neste repo**:
   1. Definir o esquema do playbook (JSON/YAML: passos, @e refs ou seletores,
-     requests esperadas, asserts) traduzindo manualmente o
-     `relatorio_ieducar.md` para esse formato.
+     requests esperadas, asserts).
   2. Escrever um executor determinístico (sem LLM) que consome o playbook
      usando as tools existentes (`browser_navigate`, `browser_click`,
      `browser_type`, `browser_network_list`).
@@ -172,7 +169,7 @@ Apenas o posicionamento aqui; o plano executável (COMO) está em
      para registrar trajetória (ação + @e ref + requests disparadas) e
      emitir o playbook ao final de uma exploração bem-sucedida.
 - **Marco falsificável**: você tem um resultado quando **um playbook gerado
-  do i-Educar re-executa o fluxo do diário sem LLM com sucesso em 3 runs**.
+  automaticamente re-executa o fluxo sem LLM com sucesso em 3 runs**.
 
 ### Priorização candidata
 
@@ -189,10 +186,8 @@ Apenas o posicionamento aqui; o plano executável (COMO) está em
 - **Verificado no código em 2026-07-18**: contagem de tools
   (`grep -c '^@app.tool' src/browser_mcp/tools.py` → **39**; sem âncora dá 41
   por 2 docstrings) e todos os `file:line` da tabela A.4 e da Parte C.
-- **Fontes históricas**: `git show cbc8e28:aprendizado_webbridge.md` e
-  `git show cbc8e28:relatorio_ieducar.md` (existem no commit; o relatório
-  contém caminhos de screenshots locais que NÃO são fonte — use apenas o
-  texto versionado).
+- **Fonte histórica**: `git show cbc8e28:aprendizado_webbridge.md` (benchmark
+  WebBridge, origem das @e refs e do modo extensão).
 - **Ao editar esta skill**:
   1. **Re-verifique stars/versão/features do browser-use** antes de citar —
      os números de 07/2026 (104k, v0.13.4, Odysseys 87.4%) envelhecem rápido.

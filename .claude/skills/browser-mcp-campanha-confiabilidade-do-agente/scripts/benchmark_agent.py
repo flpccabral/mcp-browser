@@ -140,23 +140,23 @@ def build_tasks(base_url: str) -> list[Task]:
         Task(
             id="cascade_fast",
             prompt=(
-                f"Navegue para {base_url}/cascade_ajax.html?delay=300 e complete a "
-                "matrícula: escola 'EM Machado de Assis', série '1º ano', turma "
-                "'Turma 1A', depois clique em Confirmar matrícula. Cada select é "
+                f"Navegue para {base_url}/cascade_ajax.html?delay=300 e complete o "
+                "endereço: país 'Brasil', estado 'São Paulo', cidade "
+                "'Campinas', depois clique em Confirmar endereço. Cada select é "
                 "populado por AJAX após o anterior — espere carregar antes de selecionar."
             ),
-            check=_page_contains("MATRICULA_OK"),
-            notes="cascata AJAX rápida (modo de falha histórico i-Educar)",
+            check=_page_contains("ENDERECO_OK"),
+            notes="cascata AJAX rápida (dropdowns dependentes)",
         ),
         Task(
             id="cascade_slow",
             prompt=(
-                f"Navegue para {base_url}/cascade_ajax.html?delay=2500 e complete a "
-                "matrícula: escola 'EM Cora Coralina', série '5º ano', turma "
-                "'Turma 5A', depois clique em Confirmar matrícula. Os selects "
+                f"Navegue para {base_url}/cascade_ajax.html?delay=2500 e complete o "
+                "endereço: país 'Portugal', estado 'Lisboa', cidade "
+                "'Sintra', depois clique em Confirmar endereço. Os selects "
                 "demoram alguns segundos para carregar via AJAX."
             ),
-            check=_page_contains("MATRICULA_OK"),
+            check=_page_contains("ENDERECO_OK"),
             notes="cascata AJAX lenta — estressa browser_wait/network_idle",
         ),
         Task(
