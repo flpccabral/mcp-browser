@@ -19,9 +19,9 @@ sintomas de ambiente quebrado vs dívida conhecida do repositório.
 
 **Termos usados uma vez e reaproveitados:**
 - **repo raiz** — diretório que contém `pyproject.toml`.
-- **suíte completa** — `pytest tests/` (85 testes em 4 arquivos).
-- **testes de browser** — os 43 testes de `tests/test_smoke.py` (10),
-  `tests/test_tools.py` (22) e `tests/test_agent.py` (11), que iniciam um
+- **suíte completa** — `pytest tests/` (43 testes em 3 arquivos).
+- **testes de browser** — os testes de `tests/test_smoke.py`,
+  `tests/test_tools.py` e a maioria de `tests/test_agent.py`, que iniciam um
   Chromium real via `browser_manager.start()`.
 
 ## Quando NÃO usar esta skill
@@ -34,7 +34,6 @@ sintomas de ambiente quebrado vs dívida conhecida do repositório.
 | Entender falha histórica ou regressão | `browser-mcp-arqueologia-de-falhas` |
 | Regras de arquitetura e limites de mudança | `browser-mcp-contrato-de-arquitetura` / `browser-mcp-controle-de-mudancas` |
 | Validação/QA de uma mudança | `browser-mcp-validacao-e-qa` |
-| Perfil restrito (iFood) em si | `browser-mcp-perfil-restrito` |
 | Referência das ferramentas de automação | `browser-automacao-referencia` |
 | Diagnóstico com ferramentas embutidas | `browser-mcp-diagnosticos-e-ferramentas` |
 
@@ -74,10 +73,10 @@ playwright install chromium
 ### Armadilha #1 — pular `playwright install chromium`
 
 `pip install` instala o pacote Python `playwright`, mas **não** baixa o
-binário do navegador. Sem `playwright install chromium`, os 43 testes de
-browser da suíte completa falham na inicialização do fixture (erro do
-Playwright informando executável ausente) — apenas os 42 testes de
-`tests/test_restricted_profile.py` passam. Sintoma clássico: dezenas de
+binário do navegador. Sem `playwright install chromium`, os testes de
+browser da suíte falham na inicialização do fixture (erro do Playwright
+informando executável ausente) — apenas os testes que não sobem browser (ex.:
+parsing/prune em `tests/test_agent.py`) passam. Sintoma clássico: dezenas de
 falhas idênticas logo após um clone fresco. Correção: rodar o comando acima;
 os binários vão para o cache do Playwright (no macOS,
 `~/Library/Caches/ms-playwright/`).
@@ -153,13 +152,12 @@ esse. Para o catálogo completo e autoritativo de variáveis, use a skill
 **Checagem rápida (sem browser, <1 s):**
 
 ```bash
-.venv/bin/python -m pytest tests/test_restricted_profile.py -q
+.venv/bin/python -m pytest tests/test_agent.py -q -k "parse or prune"
 ```
 
-Verificado em 2026-07-12: 42 testes passam em ~0,02 s. Esse arquivo não
-inicia navegador (usa apenas `unittest.mock`, `tempfile` e imports de
-`browser_mcp.restricted_profile`), então serve como smoke test do venv e das
-dependências Python sem exigir Chromium.
+Verificado em 2026-07-17: 8 testes passam em ~0,2 s. Esses casos não iniciam
+navegador (parsing de resposta do LLM e prune de mensagens), então servem
+como smoke test do venv e das dependências Python sem exigir Chromium.
 
 **Checagem completa (exige Chromium instalado e rede — testes usam
 httpbin.org e example.com):**
@@ -168,24 +166,21 @@ httpbin.org e example.com):**
 .venv/bin/python -m pytest tests/ -q
 ```
 
-Coleta 85 testes; duração de referência ~56 s (medição reportada em
-2026-07-12; varia com a rede). Se só os 43 testes de browser falharem,
-volte à Armadilha #1.
+Coleta 43 testes (2026-07-17); a maioria sobe browser. Se dezenas falharem
+logo após clone, volte à Armadilha #1.
 
-## Estado do lint — falha esperada, não é ambiente quebrado
+## Estado do lint
 
-Em 2026-07-12 (re-verificado 2026-07-17), `ruff check .` na repo raiz reporta
-**19 erros** (16 auto-corrigíveis), espalhados por `browser_manager.py`,
-`restricted_profile.py`, `websocket_server.py`, testes e
-`manage_mcp_browser.py`. Isso é **dívida do repo**, não sinal de setup
-errado — o mesmo resultado ocorre num clone limpo. Não "conserte" o lint
-como parte do setup; correções de lint são mudanças de código e seguem
-[[browser-mcp-controle-de-mudancas]].
+Verificado 2026-07-17: `ruff check src/browser_mcp tests` (o escopo do CI)
+**passa limpo** — a dívida de lint foi quitada. `ruff check .` na raiz ainda
+acusa alguns erros em scripts fora do escopo do CI (`manage_mcp_browser.py` e
+os scripts das skills), que **não** bloqueiam o CI. Correções de lint são
+mudanças de código e seguem [[browser-mcp-controle-de-mudancas]]; não as
+misture com setup.
 
-**Reconciliação de escopo (por que você vê 17 num lugar e 19 noutro):** o CI
-roda `ruff check src/browser_mcp tests` → **17 erros** (escopo restrito); a
-raiz `ruff check .` → **19** porque inclui scripts da raiz (ex.:
-`manage_mcp_browser.py`) que o CI não checa. Não são medições em conflito — são
+**Reconciliação de escopo:** o CI roda `ruff check src/browser_mcp tests`
+(limpo hoje); a raiz `ruff check .` inclui scripts da raiz e das skills que o
+CI não checa. Não são medições em conflito — são
 escopos diferentes. **Lar canônico do estado de lint/CI:**
 [[browser-mcp-controle-de-mudancas]] §3.
 
@@ -226,10 +221,10 @@ Como operá-la junto com o servidor é assunto de
 - [ ] `python -m venv .venv && source .venv/bin/activate`
 - [ ] `pip install -e ".[dev]"`
 - [ ] `playwright install chromium` (Armadilha #1)
-- [ ] `pytest tests/test_restricted_profile.py -q` → 42 passam em <1 s
-- [ ] `pytest tests/ -q` → 85 passam (~56 s, exige rede)
+- [ ] `pytest tests/test_agent.py -q -k "parse or prune"` → 8 passam em <1 s
+- [ ] `pytest tests/ -q` → 43 coletados (~min, exige rede/Chromium)
 - [ ] DeprecationWarnings de `websockets` aparecem? Esperado (Armadilha #2)
-- [ ] `ruff check .` com erros? Esperado — dívida do repo, não seu setup
+- [ ] `ruff check src/browser_mcp tests` limpo (escopo do CI)
 - [ ] Não copiar `.env.example` cegamente (Armadilha #3) — validar nomes em
       `browser-mcp-config-e-flags`
 
@@ -251,9 +246,9 @@ grep -n 'os.getenv' src/browser_mcp/browser_manager.py && cat .env.example
 # Contagem total de testes
 .venv/bin/python -m pytest tests/ --collect-only -q | tail -1
 # Testes rápidos sem browser
-.venv/bin/python -m pytest tests/test_restricted_profile.py -q
-# Estado do lint
-.venv/bin/ruff check . | tail -1
+.venv/bin/python -m pytest tests/test_agent.py -q -k "parse or prune"
+# Estado do lint (escopo do CI)
+.venv/bin/ruff check src/browser_mcp tests | tail -1
 # Extensão sem build step
 ls extension/package.json 2>&1
 ```

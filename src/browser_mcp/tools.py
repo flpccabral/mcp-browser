@@ -9,7 +9,6 @@ from mcp import types
 from browser_mcp.agent import BrowserAgent
 from browser_mcp.browser_manager import BrowserManager
 from browser_mcp.llm_client import LLMClient
-from browser_mcp.restricted_profile import RestrictedProfile
 
 # Singletons globais reutilizados pelas ferramentas
 browser_manager = BrowserManager()
@@ -61,13 +60,7 @@ class ToolRegistry:
         ]
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
-        """Roteia a chamada para a funcao registrada, com validacao de security profile."""
-        # Restricted mode: validate before reaching the extension/Playwright
-        if RestrictedProfile.is_active():
-            allowed, reason = RestrictedProfile.validate_tool_call(name, arguments)
-            if not allowed:
-                return [types.TextContent(type="text", text=reason)]
-
+        """Roteia a chamada para a função registrada."""
         if name not in self._tools:
             raise ValueError(f"Ferramenta desconhecida: {name}")
         func = self._tools[name]["func"]

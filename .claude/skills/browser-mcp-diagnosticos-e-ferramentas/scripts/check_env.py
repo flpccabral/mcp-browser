@@ -35,7 +35,6 @@ READ_VARS: list[tuple[str, str, str]] = [
     ("LLM_API_KEY", "", "llm_client.py:19"),
     ("LLM_MODEL", "<provider default>", "llm_client.py:20"),
     ("LLM_BASE_URL", "<provider default>", "llm_client.py:21"),
-    ("IFOOD_RESTRICTED_MODE", "", "restricted_profile.py:31"),
 ]
 
 # Nomes documentados em .env.example que o código NÃO lê (2026-07-13).

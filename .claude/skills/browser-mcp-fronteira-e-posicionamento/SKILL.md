@@ -6,9 +6,9 @@ description: >
   reivindicar qualquer capacidade em README público, post, roadmap ou pitch;
   ao escrever sobre "estado da arte" em automação de browser; ao escolher qual
   problema aberto atacar; ao avaliar se uma feature nos diferencia ou apenas
-  alcança o SOTA; ao redigir alegações de segurança, stealth ou confiabilidade
+  alcança o SOTA; ao redigir alegações de stealth ou confiabilidade
   do agente. Contém o mapa competitivo datado, a disciplina anti-inflação de
-  claims e os 3 problemas abertos candidatos com marcos falsificáveis.
+  claims e os problemas abertos candidatos com marcos falsificáveis.
 ---
 
 # Fronteira e posicionamento — MCP Browser Server
@@ -25,9 +25,6 @@ sempre com data.
 
 - **Executar ou depurar o servidor** → `browser-mcp-executar-e-operar`,
   `browser-mcp-playbook-de-depuracao`.
-- **Detalhes internos do perfil restrito** (implementação, flags, testes) →
-  `browser-mcp-perfil-restrito`. Aqui só o posicionamento dele como problema
-  aberto #1.
 - **Planejar/executar o benchmark de confiabilidade** →
   `browser-mcp-campanha-confiabilidade-do-agente`. Aqui só o porquê do nicho.
 - **Barra de evidência e metodologia de prova** →
@@ -67,9 +64,7 @@ O concorrente dominante em "agente de browser open source":
 
 O que browser-use **não tem** (verificado 07/2026):
 - Modo extensão sem debug port (conexão ao Chrome real do usuário via
-  extensão + WebSocket loopback).
-- Perfil restrito de segurança (allowlist de domínio/tool/hash de script
-  imposta pelo servidor, não pelo prompt).
+  extensão + WebSocket loopback, com token e validação de origin).
 - Network/HAR como tool de primeira classe exposta ao agente.
 
 ### A.2 Kimi WebBridge (referência histórica interna)
@@ -92,24 +87,22 @@ o cliente. Competem em "dar mãos ao LLM", não em "agente confiável" nem em
 ### A.4 Tabela de capacidades (só o verificável no nosso código)
 
 Colunas de terceiros refletem 07/2026 e são voláteis. Coluna "Nós" cita
-`file:line` verificado em 2026-07-17.
+`file:line` verificado em 2026-07-18.
 
 | Capacidade | Nós (file:line) | browser-use (07/2026) | Playwright MCP (categoria) |
 |---|---|---|---|
 | Refs semânticas de elementos | Sim — @e refs em click/type (`src/browser_mcp/tools.py:323-343`, `:369-396`) + `browser_accessibility_tree` (`src/browser_mcp/tools.py:511`) | Índices numéricos + visão | Snapshot a11y, sem loop de agente |
 | Network monitoring como tool | Sim — `browser_network_start/list` (`src/browser_mcp/tools.py:753`, `:807`) | Não como tool de 1ª classe | Não |
 | Export HAR | Sim — `browser_export_har` (`src/browser_mcp/tools.py:898`) | Não | Não |
-| Modo extensão sem debug port | Sim — `browser_connect_to_extension` (`src/browser_mcp/tools.py:181`) + WS com token e validação de origin `chrome-extension://` (`src/browser_mcp/websocket_server.py:220-229`, `:260-265`) | Não | Não |
-| Perfil restrito (allowlist domínio/tool/hash JS, loopback forçado) | Sim — `src/browser_mcp/restricted_profile.py:39-44` (hosts), `:76` (tools), `:101` (hashes, vazio = rejeita tudo, `:114-116`), `:242` (loopback); imposto no WS em `src/browser_mcp/websocket_server.py:74-84` | Não (modelo: confiar no agente/prompt) | Não |
-| Testes adversariais de segurança | Sim — 42 testes em `tests/test_restricted_profile.py` (look-alike `:63`, subdomínio `:66`, loopback `:352-354`); **2 falham hoje** porque o WIP intencional do dono expandiu as allowlists (ver [[browser-mcp-perfil-restrito]]) | Não publicado | Não |
+| Modo extensão sem debug port | Sim — `browser_connect_to_extension` (`src/browser_mcp/tools.py:181`) + WS com token (`hmac.compare_digest`) e validação de origin `chrome-extension://` (`src/browser_mcp/websocket_server.py`) | Não | Não |
 | Agente embutido | Sim — `browser_agent_task` (`src/browser_mcp/tools.py:1072`) | Sim (núcleo do produto) | Não |
 | Remoção de sinais de automação | Parcial — `navigator.webdriver` (`src/browser_mcp/browser_manager.py:52-54`) | Sim (vários) | Não |
 | Benchmark público reproduzível | **Não** (lacuna aberta) | Sim (Odysseys 87.4%) | N/A |
 | Retry/fallback de LLM estruturado | **Não** no nível deles | Sim | N/A |
 | Modelo fine-tuned próprio | Não | Sim | N/A |
 
-Leitura honesta da tabela: nossos diferenciais reais são **segurança
-verificável, modo extensão e network de 1ª classe**. Em confiabilidade de
+Leitura honesta da tabela: nossos diferenciais reais são **modo extensão no
+browser real do usuário e network/HAR de 1ª classe**. Em confiabilidade de
 agente e benchmark, browser-use está na frente — não finja o contrário.
 
 ---
@@ -123,7 +116,7 @@ Disciplina anti-inflação. Toda alegação pública segue o padrão:
 |---|---|---|
 | "N ferramentas" | Conte ANTES de publicar, com o grep ANCORADO. Nunca copie o número de outro doc. | `grep -c '^@app.tool' src/browser_mcp/tools.py` — em **2026-07-17** retorna **39**; o README diz **37** (`README.md:4`, `:8`, `:116`). Atenção: sem a âncora `^` o grep dá **41** (2 docstrings — falso positivo). **Divergência 37 (README) vs 39 (real) aberta** — corrija o README ou justifique antes de publicar. |
 | "agente confiável" | **PROIBIDO** reivindicar. Não existe benchmark reproduzível hoje. | Só após executar a suíte de `browser-mcp-campanha-confiabilidade-do-agente` e publicar taxa + N tarefas + N runs. |
-| "seguro" | Reivindique SOMENTE o que `tests/test_restricted_profile.py` prova adversarialmente (42 testes: look-alike, subdomínio, tool fora da allowlist, hash não aprovado, bind loopback). Hoje **2 testes falham** por WIP intencional (allowlists expandidas) — não reivindique "verde" até ressincronizar (ver [[browser-mcp-perfil-restrito]]). | `.venv/bin/python -m pytest tests/test_restricted_profile.py` verde + citar os casos adversariais. "Seguro" vira "bloqueia X, Y, Z sob perfil restrito — testado". |
+| "seguro" | O único controle de segurança no código hoje é a autenticação do WebSocket bridge (token via `hmac.compare_digest` + origin `chrome-extension://`). Reivindique SÓ isso, e note que não há suíte adversarial dedicada. **PROIBIDO** afirmar "automação segura/auditável" de forma ampla — não há allowlist de domínio/tool/script imposta pelo runtime. | Citar `websocket_server.py` (auth do bridge). Ver [[browser-mcp-metodologia-e-prova]] B.2 para o que um teste adversarial dessa camada exigiria. |
 | "stealth" | Reivindique remoção de **sinais específicos** (ex.: `navigator.webdriver`, `src/browser_mcp/browser_manager.py:52-54`). "Indetectável" é **PROIBIDO** — é infalsificável e envelhece mal. | Listar cada sinal removido com file:line. |
 | Comparações com concorrentes | Sempre datadas e marcadas como voláteis. | Re-verificar fonte primária (repo/release notes) no dia da publicação. |
 
@@ -132,43 +125,12 @@ processo de publicação: `browser-mcp-controle-de-mudancas`.
 
 ---
 
-## Parte C — Fronteira: 3 problemas abertos
+## Parte C — Fronteira: 2 problemas abertos
 
 > **TUDO nesta parte é ABERTO/CANDIDATO.** Nada aqui é capacidade entregue.
 > Não cite nenhum item da Parte C como feature em material público.
 
-### Problema aberto #1 — Automação segura auditável no browser real [ABERTO/CANDIDATO]
-
-- **Por que o SOTA falha**: o modelo do browser-use (07/2026) é confiar no
-  agente — sem allowlist de domínio imposta pelo runtime, sem hash de
-  scripts, sem bind loopback obrigatório. Segurança por prompt não é
-  garantia verificável.
-- **Nosso ativo**: `src/browser_mcp/restricted_profile.py` (allowlist de
-  hosts `:39-44`, tools `:76`, hashes SHA-256 com rejeição por default
-  `:101`/`:114-116`, loopback `:242`, ativação por `IFOOD_RESTRICTED_MODE=1`
-  `:31`) + modo extensão (`src/browser_mcp/tools.py:181`,
-  `src/browser_mcp/websocket_server.py:220-265`) + 44 testes adversariais
-  (todos passando em 2026-07-17 — ver [[browser-mcp-perfil-restrito]]).
-- **3 primeiros passos neste repo** (cada um relaxa/mexe num default de
-  segurança → **todos passam pelo gate de [[browser-mcp-controle-de-mudancas]]**;
-  mudança de segurança não entra sem o processo):
-  1. Popular `ALLOWED_SCRIPT_HASHES` (hoje vazio) com os scripts do fluxo
-     do piloto nos hosts permitidos (portal do parceiro), via
-     `compute_script_hash` — via gate de
-     [[browser-mcp-controle-de-mudancas]].
-  2. ~~Commitar a integração~~ **FEITO em 2026-07-17** (commit `ed98aac`):
-     enforcement integrado em `tools.py`/`websocket_server.py`, testes
-     sincronizados (44 passando), allowlist ajustada ao escopo do piloto
-     (`gestordepedidos` removido).
-  3. Teste E2E adversarial do modo restrito de ponta a ponta (não só
-     unitário): servidor real + extensão real + tentativas hostis.
-- **Marco falsificável**: você tem um resultado quando **um fluxo real
-  completa em modo restrito E todos os ataques adversariais (subdomínio não
-  listado, domínio look-alike, JS não aprovado, bind em interface externa)
-  são BLOQUEADOS** — qualquer ataque que passe invalida o claim.
-- Detalhes de implementação: `browser-mcp-perfil-restrito`.
-
-### Problema aberto #2 — Confiabilidade mensurável em sites legados [ABERTO/CANDIDATO]
+### Problema aberto #1 — Confiabilidade mensurável em sites legados [ABERTO/CANDIDATO]
 
 Apenas o posicionamento aqui; o plano executável (COMO) está em
 `browser-mcp-campanha-confiabilidade-do-agente`.
@@ -185,7 +147,7 @@ Apenas o posicionamento aqui; o plano executável (COMO) está em
   tarefas i-Educar, em 3 runs**, com comando + versão + data. Sem suíte
   publicada, nenhum claim de confiabilidade.
 
-### Problema aberto #3 — Agente que gera playbooks reutilizáveis [ABERTO/CANDIDATO]
+### Problema aberto #2 — Agente que gera playbooks reutilizáveis [ABERTO/CANDIDATO]
 
 - **A ideia**: o agente explora o site UMA vez e emite um mapa executável
   (endpoints AJAX, seletores/@e refs, ordem de preenchimento) que roda
@@ -216,21 +178,17 @@ Apenas o posicionamento aqui; o plano executável (COMO) está em
 
 | # | Problema | Esforço até o marco | Diferenciação vs SOTA |
 |---|---|---|---|
-| 1 | Segurança auditável | Baixo (código existe, falta integrar+E2E) | Alta — ninguém oferece |
-| 2 | Confiabilidade legado | Médio (construir suíte) | Média — nicho defensável |
-| 3 | Playbooks sem LLM | Alto (novo subsistema) | Alta — ataca o custo estrutural do SOTA |
+| 1 | Confiabilidade legado | Médio (construir suíte) | Média — nicho defensável |
+| 2 | Playbooks sem LLM | Alto (novo subsistema) | Alta — ataca o custo estrutural do SOTA |
 
 ---
 
 ## Proveniência e manutenção
 
-- **Escrito em**: 2026-07-13, na branch `etapa-1-ifood-restricted-profile`;
-  re-verificado em 2026-07-17.
-- **Verificado no código em 2026-07-17**: contagem de tools
+- **Escrito em**: 2026-07-18.
+- **Verificado no código em 2026-07-18**: contagem de tools
   (`grep -c '^@app.tool' src/browser_mcp/tools.py` → **39**; sem âncora dá 41
-  por 2 docstrings), todos os `file:line` da tabela A.4 e da Parte C, e os 42
-  testes de `tests/test_restricted_profile.py` (2 falham hoje por WIP das
-  allowlists expandidas).
+  por 2 docstrings) e todos os `file:line` da tabela A.4 e da Parte C.
 - **Fontes históricas**: `git show cbc8e28:aprendizado_webbridge.md` e
   `git show cbc8e28:relatorio_ieducar.md` (existem no commit; o relatório
   contém caminhos de screenshots locais que NÃO são fonte — use apenas o
@@ -248,5 +206,5 @@ Apenas o posicionamento aqui; o plano executável (COMO) está em
 - **Skills irmãs**: contrato de arquitetura, controle de mudanças, build e
   ambiente, executar e operar, config e flags, playbook de depuração,
   arqueologia de falhas, diagnósticos e ferramentas, validação e QA,
-  referência de automação, perfil restrito (#1), campanha de confiabilidade
+  referência de automação, campanha de confiabilidade
   (#2), metodologia e prova (barra de evidência).

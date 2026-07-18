@@ -31,12 +31,11 @@ para trocar "acho que melhorou" por um número.
 > cercado (ver seção "Caminhos cercados").
 
 Toda promoção passa pelo gate de `[[browser-mcp-controle-de-mudancas]]` e não pode
-introduzir NOVAS regressões além da dívida já declarada. Contagem verificada
-2026-07-17: `.venv/bin/python -m pytest tests/ --collect-only -q` → "85 tests
-collected"; hoje **2 falham** por WIP intencional (allowlists do perfil restrito
-expandidas — ver [[browser-mcp-perfil-restrito]]) e algumas são flaky por timeout
-de rede (httpbin/networkidle). O critério é: **sem novas regressões além dessa
-dívida declarada**, não "85 verdes cegamente".
+introduzir NOVAS regressões. Contagem verificada 2026-07-17:
+`.venv/bin/python -m pytest tests/ --collect-only -q` lista os testes coletados;
+algumas suítes de smoke são flaky por timeout de rede (httpbin/networkidle). O
+critério é: **sem novas regressões além dessa flakiness conhecida de rede**, não
+"tudo verde cegamente".
 
 ## Quando NÃO usar esta skill
 
@@ -48,7 +47,7 @@ dívida declarada**, não "85 verdes cegamente".
 - **Você vai só rodar o servidor / conectar extensão** → `[[browser-mcp-executar-e-operar]]`.
 - **Você quer comparar com concorrentes ou escrever claim público** →
   `[[browser-mcp-fronteira-e-posicionamento]]`.
-- **A mudança não toca o agente** (nova tool, perfil restrito) → outras skills.
+- **A mudança não toca o agente** (nova tool, config) → outras skills.
 
 ---
 

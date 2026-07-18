@@ -68,9 +68,7 @@ devolve conteúdo (aqui, `TextContent`).
 declarados nos decorators — é isso que o modelo enxerga. Adicionar capacidade =
 registrar uma tool nova com schema. Erros viram texto: `server.py:31-32` embrulha
 qualquer exceção como `"ERROR: [Server] - ..."`, então o modelo nunca vê stack
-trace, só a string. Antes de chegar na função, `tools.py:64-68` aplica a validação
-do perfil restrito — uma tool pode ser recusada por política antes de tocar o
-browser.
+trace, só a string.
 
 ---
 
@@ -373,7 +371,6 @@ loopback `127.0.0.1` (`:75-82`) e o token é obrigatório com mensagem explícit
   `browser-mcp-build-e-ambiente`.
 - **Vai rodar/operar o servidor ou setar flags** →
   `browser-mcp-executar-e-operar`, `browser-mcp-config-e-flags`.
-- **Vai mexer no perfil restrito de segurança** → `browser-mcp-perfil-restrito`.
 - **Vai adicionar/mergear uma tool ou seguir estilo de docs** →
   `browser-mcp-controle-de-mudancas`.
 - **Quer a lista de ferramentas de diagnóstico** →

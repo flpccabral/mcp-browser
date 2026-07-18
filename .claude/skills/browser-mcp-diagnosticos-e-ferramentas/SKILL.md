@@ -8,14 +8,13 @@ description: >
   errors (browser_get_console_errors, erros GraphQL/React), despejar o accessibility tree
   e usar refs @e, listar elementos interativos, entender por que um elemento NÃO aparece,
   usar o ws_client.py manual, ler logs de stderr, listar as ferramentas registradas,
-  conferir env vars efetivas, ou calcular o hash de um script para a allowlist do perfil
-  restrito. Gatilhos: "medir", "network log", "HAR", "console errors", "accessibility tree",
-  "refs @e", "elementos interativos", "hash de script", "quantas tools", "dropdown vazio".
+  ou conferir env vars efetivas. Gatilhos: "medir", "network log", "HAR", "console errors",
+  "accessibility tree", "refs @e", "elementos interativos", "quantas tools", "dropdown vazio".
 ---
 
 # Diagnósticos e Ferramentas — browser-mcp-server
 
-Este projeto tem instrumentos para **medir** o browser em vez de adivinhar. Esta skill cataloga cada um, mostra o comando exato e — o mais importante — **como ler a saída**. Todas as referências `file:line` e contagens foram verificadas em 2026-07-13 no branch `etapa-1-ifood-restricted-profile`; re-confira após refactors grandes (veja "Proveniência e manutenção").
+Este projeto tem instrumentos para **medir** o browser em vez de adivinhar. Esta skill cataloga cada um, mostra o comando exato e — o mais importante — **como ler a saída**. Todas as referências `file:line` e contagens foram verificadas em 2026-07-17; re-confira após refactors grandes (veja "Proveniência e manutenção").
 
 Regra de ouro: **antes de propor uma causa, produza uma medição que a discrimine.** Se a resposta for "olhei e parece que...", pare e escolha um instrumento abaixo.
 
@@ -24,7 +23,6 @@ Regra de ouro: **antes de propor uma causa, produza uma medição que a discrimi
 - **Algo QUEBROU e você quer triar o sintoma** (click não funciona, extensão não conecta, timeout) → `browser-mcp-playbook-de-depuracao` (ele *usa* estes instrumentos na triagem).
 - **Teoria por trás de CDP/CSP/isTrusted/accessibility/MV3** → `browser-automacao-referencia`.
 - **Significado/default de cada env var** → `browser-mcp-config-e-flags` (aqui só damos o script `check_env.py` que mostra o valor efetivo).
-- **Semântica dos 6 controles do perfil restrito** e aprovar scripts → `browser-mcp-perfil-restrito` (o `hash_script.py` daqui alimenta a allowlist).
 - **A crônica de por que o i-Educar/console/overlay são assim** → `browser-mcp-arqueologia-de-falhas`.
 - **Como provar uma alegação com rigor** → `browser-mcp-metodologia-e-prova`.
 
@@ -42,7 +40,6 @@ Regra de ouro: **antes de propor uma causa, produza uma medição que a discrimi
 | Visão alternativa dos clicáveis | `get_interactive_elements` (interno) | via agente/CDP | tag/id/name/text/selector dos até 50 primeiros visíveis |
 | Quais ferramentas existem mesmo? | `scripts/dump_tools.py` | `python .../dump_tools.py` | 39 nomes + descrição (README diz 37 — divergência aberta) |
 | Minha env var tem efeito? | `scripts/check_env.py` | `python .../check_env.py` | valor efetivo + o que o `.env.example` documenta errado |
-| Qual o hash deste script p/ allowlist? | `scripts/hash_script.py` | `python .../hash_script.py -c '<js>'` | SHA-256 pronto p/ `ALLOWED_SCRIPT_HASHES` |
 | Testar a extensão sem cliente MCP | `ws_client.py` (raiz) | `python ws_client.py navigate '{"url":"..."}'` | JSON cru da resposta da extensão |
 
 Os `python .../` acima referem-se a `.claude/skills/browser-mcp-diagnosticos-e-ferramentas/scripts/`. Use o Python do repo: `.venv/bin/python` (3.14).
@@ -213,28 +210,14 @@ Imprime, para cada variável que o **código realmente lê**, o valor efetivo no
 
 O catálogo completo com defaults e efeitos está em `browser-mcp-config-e-flags`; aqui o script só mostra o estado *efetivo*.
 
-### `hash_script.py` — hash de script para a allowlist
-
-```
-.venv/bin/python .../hash_script.py -c 'document.title'      # literal
-printf 'document.title' | .venv/bin/python .../hash_script.py -   # stdin
-.venv/bin/python .../hash_script.py caminho/snippet.js       # arquivo
-```
-
-Calcula `hashlib.sha256(code.encode("utf-8")).hexdigest()` — **idêntico** a `restricted_profile.compute_script_hash` (`restricted_profile.py:104-106`), cross-checado em execução (mesmo digest). O hash sai em **stdout**; um comentário pronto para colar em `ALLOWED_SCRIPT_HASHES` (`restricted_profile.py:101`) sai em **stderr**.
-
-**Cuidado crítico:** o hash é do texto **exato**. Um espaço, quebra de linha ou aspas diferentes mudam o hash e o script será rejeitado. Passe o snippet **exatamente** como irá para `browser_execute_javascript`. Prefira `stdin`/arquivo a `-c` para não deixar o shell reescrever aspas. O procedimento completo de aprovação está em `browser-mcp-perfil-restrito`.
-
 ---
 
 ## Proveniência e manutenção
 
-Fatos verificados em **2026-07-13**, branch `etapa-1-ifood-restricted-profile`. Re-verificações de uma linha:
+Fatos verificados em **2026-07-17**. Re-verificações de uma linha:
 
 - **39 tools:** `grep -c '^@app.tool' src/browser_mcp/tools.py` → 39; ou rode `dump_tools.py` (Total no stderr). README ainda diz 37 (`grep '37 ferramentas' README.md`) — divergência aberta.
 - **Console só warn/error:** `grep -n 'console.warn\|console.error\|onerror' extension/injected.js` — só `warn`/`error` sobrescritos (`:99,:104`); nenhum `window.onerror`.
 - **AX tree via CDP:** `grep -n 'getFullAXTree' src/browser_mcp/browser_manager.py` → `:349`.
 - **`.env.example` errado / sem `load_dotenv`:** `grep -rn 'load_dotenv' src/` → vazio; `grep -rn 'os.getenv' src/browser_mcp/browser_manager.py` mostra os nomes `BROWSER_*` reais. Rode `check_env.py`.
-- **hash idêntico:** `grep -n 'sha256' src/browser_mcp/restricted_profile.py` → `:106`; `hash_script.py -c 'document.title'` deve casar com `compute_script_hash('document.title')`.
 - **Tamanhos:** `wc -l src/browser_mcp/network.py` (251), `src/browser_mcp/extension_bridge.py` (441), `ws_client.py` (37).
-- **WIP não commitado** nesta branch (intencional, do dono): `tools.py`, `websocket_server.py`, `restricted_profile.py` — allowlist com `partners-auth.ifood.com.br`/`developer.ifood.com.br` (`restricted_profile.py:42-43`) e `browser_type`/`browser_click` em `ALLOWED_TOOLS` (`:80-81`). Se re-verificar `file:line`, faça-o contra o estado da árvore de trabalho, não o último commit.

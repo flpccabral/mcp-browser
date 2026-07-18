@@ -4,8 +4,8 @@ description: >
   Runbook operacional do browser-mcp-server: como rodar o servidor (python -m
   browser_mcp.server), conectar a extensão Chrome, usar modo CDP com Chrome
   existente, iniciar o WebSocket server standalone, subcomandos de
-  manage_mcp_browser.py, token em ~/.mcp_browser_token, modo restrito iFood
-  (IFOOD_RESTRICTED_MODE), config de mcpServers em clients MCP, hermes-mcp.sh,
+  manage_mcp_browser.py, token em ~/.mcp_browser_token, config de mcpServers
+  em clients MCP, hermes-mcp.sh,
   e onde artefatos aterrissam (screenshots, HAR, downloads, agent_output).
   Use quando a pergunta for "como rodar o servidor", "como conectar a
   extensão", "como usar modo CDP", "onde ficam os screenshots/downloads",
@@ -16,7 +16,7 @@ description: >
 
 Runbook para subir e operar o sistema nos seus 3 modos, com a anatomia de cada
 comando e as convenções de saída. Tudo abaixo foi verificado contra o código
-em 2026-07-12 (branch `etapa-1-ifood-restricted-profile`).
+em 2026-07-18.
 
 ## Quando NÃO usar esta skill
 
@@ -26,7 +26,6 @@ em 2026-07-12 (branch `etapa-1-ifood-restricted-profile`).
 | Catálogo completo de env vars e flags | `browser-mcp-config-e-flags` |
 | Algo não conecta / falha em runtime | `browser-mcp-playbook-de-depuracao` |
 | Por que existem 3 modos, trade-offs de arquitetura | `browser-mcp-contrato-de-arquitetura` |
-| Detalhes de segurança do modo restrito iFood | `browser-mcp-perfil-restrito` |
 | Medir tráfego de rede / console da página | `browser-mcp-diagnosticos-e-ferramentas` |
 | Teoria dos substratos e semântica das tools | `browser-automacao-referencia` |
 | Catálogo/medição das 39 tools (dump_tools.py, contagem) | `browser-mcp-diagnosticos-e-ferramentas` |
@@ -110,8 +109,7 @@ Config típica de `mcpServers` (o `command` deve resolver para o venv do repo):
 
 Env vars aceitas: ver catálogo em `browser-mcp-config-e-flags` (principais:
 `BROWSER_HEADLESS`, `EXTENSION_WS_URL`, `LLM_PROVIDER`/`LLM_API_KEY`/
-`LLM_MODEL`/`LLM_BASE_URL`, `IFOOD_RESTRICTED_MODE`,
-`BROWSER_MCP_DOWNLOAD_DIR`).
+`LLM_MODEL`/`LLM_BASE_URL`, `BROWSER_MCP_DOWNLOAD_DIR`).
 
 ### hermes-mcp.sh — launcher para o Hermes
 
@@ -249,41 +247,6 @@ websocket_server.py:552).
 
 ---
 
-## Modo restrito iFood (IFOOD_RESTRICTED_MODE=1)
-
-Muda o comportamento **operacional** do sistema
-(src/browser_mcp/restricted_profile.py). Efeitos verificados em 2026-07-12:
-
-- **Loopback forçado:** WS binda só em `127.0.0.1`; `host` diferente é
-  ignorado com WARNING.
-- **Startup pode abortar:** `check_startup_conditions()` exige
-  `~/.mcp_browser_token` existente com permissão `0600` (ou `0400`); caso
-  contrário o processo faz `sys.exit(1)` com `[WS-SERVER] FATAL:`
-  (restricted_profile.py:122-152, 294-307). Fix: `chmod 600 ~/.mcp_browser_token`.
-- **Origin obrigatório:** conexão sem header `Origin`, ou com origin que não
-  seja `chrome-extension://`, recebe 403 (no modo normal, origin vazio passa).
-- **Tools permitidas (5, commitado):** `browser_navigate`,
-  `browser_get_content`, `browser_execute_javascript`, `browser_type`,
-  `browser_click` (restricted_profile.py:75-81). Navegação só HTTPS para
-  3 hosts exatos: `portal.ifood.com.br`, `partners-auth.ifood.com.br`,
-  `developer.ifood.com.br` (2026-07-17; `gestordepedidos.ifood.com.br` foi
-  removido da allowlist). Valores exatos e estado canônico:
-  [[browser-mcp-perfil-restrito]] — re-verifique lá antes de citar.
-- **Todo JS rejeitado por default:** `ALLOWED_SCRIPT_HASHES` está vazio
-  (restricted_profile.py:97), e allowlist vazia = rejeita tudo
-  (secure-by-default, restricted_profile.py:105-112). Para aprovar um script,
-  adicione o SHA-256 do código exato ao set.
-- **Logs sanitizados:** chaves com token/auth/cookie/localStorage viram
-  `[REDACTED]`; strings truncadas em 200 chars.
-
-**NOTA DE ESTADO (2026-07-12):** a integração do `RestrictedProfile` em
-`tools.py` e `websocket_server.py` é **WIP não commitado** nesta branch
-(`etapa-1-ifood-restricted-profile`); `restricted_profile.py` em si está
-commitado. Não assuma que o enforcement existe em `main`. Detalhes de
-segurança: skill `browser-mcp-perfil-restrito`.
-
----
-
 ## Onde os artefatos aterrissam
 
 | Artefato | Tool | Destino |
@@ -350,8 +313,7 @@ pronta.
 
 ## Proveniência e manutenção
 
-Fatos datados de 2026-07-12, branch `etapa-1-ifood-restricted-profile`;
-re-verificados em 2026-07-17. Re-verificações de uma linha:
+Fatos datados de 2026-07-18. Re-verificações de uma linha:
 
 - Startup e falha "opcional": ler `src/browser_mcp/server.py:68-75`.
 - Console script quebrado: `pyproject.toml:62` aponta para `main` e
@@ -360,7 +322,5 @@ re-verificados em 2026-07-17. Re-verificações de uma linha:
 - Porta/limite WS: `grep -n "MAX_PAYLOAD_SIZE\|port: int" src/browser_mcp/websocket_server.py` (64 MiB, 8765).
 - Nº de tools: `grep -c '^@app.tool' src/browser_mcp/tools.py` → **39**
   (sem a âncora `^` dá 41 por contar 2 docstrings).
-- Tools do modo restrito: `grep -n "ALLOWED_TOOLS" src/browser_mcp/restricted_profile.py` (linhas 76-82; 5 tools no working tree — lar canônico [[browser-mcp-perfil-restrito]]).
-- WIP restrito integrado? `git diff main -- src/browser_mcp/tools.py src/browser_mcp/websocket_server.py` — se vazio em `main`, a nota de WIP pode ser removida.
 - ws_client ainda quebrado? conferir se `ws_client.py` ganhou token e campo `"type"`.
 - Paths hard-coded: `grep -n "PROJECT_DIR\|sys.path.insert" manage_mcp_browser.py websocket_server_standalone.py`.

@@ -8,9 +8,9 @@ description: >
   extensão Chrome via WebSocket) e por que existem; rastrear o fluxo de uma tool
   call do MCP stdio até o Playwright ou até background.js; entender os
   singletons globais (BrowserManager, ExtensionBridge, websocket_server) e suas
-  implicações; avaliar se uma mudança viola um invariante (RestrictedProfile
-  como ponto único de enforcement, execute_javascript só para extração de dados,
-  refs @e do accessibility tree); ou conhecer os defeitos declarados (entry
+  implicações; avaliar se uma mudança viola um invariante (execute_javascript
+  só para extração de dados, refs @e do accessibility tree); ou conhecer os
+  defeitos declarados (entry
   point do console script quebrado, contagem de tools divergente do README,
   deprecation de websockets.server, broadcast WebSocket sem roteamento por
   cliente, LLMClient duplicado). Gatilhos típicos: "como funciona a
@@ -23,12 +23,8 @@ description: >
 
 Este documento descreve o que o sistema É, por que foi desenhado assim, o que
 NÃO pode ser quebrado, e o que já está quebrado. Todos os fatos, caminhos e
-números de linha foram verificados contra o working tree em **2026-07-13**
-(branch `etapa-1-ifood-restricted-profile`, HEAD `ddf9bc1`). Atenção:
-`src/browser_mcp/tools.py` e `src/browser_mcp/websocket_server.py` têm
-mudanças NÃO COMMITADAS — números de linha citados referem-se ao working tree,
-não ao último commit. Re-verifique com os comandos da seção final antes de
-citar em outro contexto.
+números de linha foram verificados contra o código em **2026-07-18**.
+Re-verifique com os comandos da seção final antes de citar em outro contexto.
 
 ## Quando NÃO usar esta skill
 
@@ -42,7 +38,6 @@ citar em outro contexto.
 | Medir: network log, HAR, console errors | [[browser-mcp-diagnosticos-e-ferramentas]] |
 | Rodar a suíte de testes e coletar evidência | [[browser-mcp-validacao-e-qa]] |
 | Teoria geral (MCP, CDP, a11y, isTrusted, CSP, MV3) | [[browser-automacao-referencia]] |
-| Detalhes do perfil restrito iFood (segurança) | [[browser-mcp-perfil-restrito]] |
 | Confiabilidade do agente autônomo (problema #1) | [[browser-mcp-campanha-confiabilidade-do-agente]] |
 | Posicionamento vs. browser-use e concorrentes | [[browser-mcp-fronteira-e-posicionamento]] |
 | Barra de evidência e metodologia de prova | [[browser-mcp-metodologia-e-prova]] |
@@ -63,13 +58,12 @@ Mapa de módulos em `src/browser_mcp/` (linhas verificadas 2026-07-13):
 | Módulo | Linhas | Papel |
 |---|---|---|
 | `server.py` | 93 | Entry point MCP: stdio server, list_tools/call_tool, shutdown |
-| `tools.py` | 1312 | `ToolRegistry` + 39 tools `@app.tool` (WIP não commitado) |
+| `tools.py` | 1312 | `ToolRegistry` + 39 tools `@app.tool` |
 | `browser_manager.py` | 1256 | Singleton que detém o browser e roteia por modo |
 | `agent.py` | 596 | Agente autônomo: loop OBSERVE→THINK→CHECK→ACT→RECORD (`agent.py:108`) |
 | `extension_bridge.py` | 441 | Singleton: ponte comandos/eventos com a extensão |
-| `websocket_server.py` | 583 | Servidor WS em `ws://localhost:8765` (WIP não commitado) |
+| `websocket_server.py` | 583 | Servidor WS em `ws://localhost:8765` |
 | `network.py` | 251 | Interceptação de rede no modo Playwright |
-| `restricted_profile.py` | 307 (HEAD) / 311 (working tree com WIP) | Enforcement do modo restrito iFood |
 | `llm_client.py` | 101 | Cliente HTTP para o LLM do agente |
 | `visual_indicator.py` | 136 | Indicadores visuais via CDP Runtime.evaluate |
 | `utils.py` | 59 | Utilitários |
@@ -117,9 +111,8 @@ Cliente MCP (LLM)
 server.py — @server.call_tool → handle_call_tool (server.py:24-32)
   │ delega para app.call_tool(name, arguments)
   ▼
-ToolRegistry.call_tool (tools.py:61-72)
-  │ 1º: RestrictedProfile.validate_tool_call se modo restrito (tools.py:64-67)
-  │ 2º: despacha para a função registrada via @app.tool
+ToolRegistry.call_tool (tools.py)
+  │ despacha para a função registrada via @app.tool
   ▼
 BrowserManager (singleton) — método da tool (ex.: navigate)
   │
@@ -204,22 +197,7 @@ protocolo. Ao mexer aqui, respeite o WIP não commitado no arquivo.
 
 ## Invariantes — o que qualquer mudança deve preservar
 
-1. **`RestrictedProfile` é o ponto ÚNICO de enforcement de segurança.**
-   Toda tool call passa por `RestrictedProfile.validate_tool_call` ANTES de
-   alcançar Playwright ou extensão (`tools.py:64-67`); o servidor WS aplica
-   loopback forçado + checks de startup (`websocket_server.py:75-87`), origin
-   obrigatório (221-233) e token obrigatório (259-273) consultando a mesma
-   classe. Não espalhe checagens de segurança por outros módulos: adicione em
-   `restricted_profile.py`. Estado do perfil (verificado 2026-07-17,
-   `restricted_profile.py:39-44,76-82,97`): ativação por
-   `IFOOD_RESTRICTED_MODE=1`; allowlists de host e de tool hoje com **4 hosts
-   / 5 tools** no working tree (expansão intencional WIP; HEAD ainda tem 2/3),
-   HTTPS obrigatório e match exato de hostname; `ALLOWED_SCRIPT_HASHES = set()`
-   — vazio, logo TODO JavaScript é rejeitado (secure-by-default,
-   `restricted_profile.py:110-112`). Os valores exatos mudam — lar canônico e
-   re-verificação: [[browser-mcp-perfil-restrito]] (não reproduzir a lista aqui).
-
-2. **`browser_execute_javascript` é só para EXTRAÇÃO DE DADOS.** Eventos
+1. **`browser_execute_javascript` é só para EXTRAÇÃO DE DADOS.** Eventos
    sintéticos (`element.click()`) têm `isTrusted=false` e são bloqueados por
    Google News e muitas SPAs. O system prompt do agente proíbe explicitamente
    usar JS para clicar/navegar (`agent.py:38` e `agent.py:64`); a descrição da
@@ -228,7 +206,7 @@ protocolo. Ao mexer aqui, respeite o WIP não commitado no arquivo.
    fluxos substituindo `browser_click` por JS. Teoria em
    [[browser-automacao-referencia]].
 
-3. **O accessibility tree gera refs `@e` que as tools de interação resolvem.**
+2. **O accessibility tree gera refs `@e` que as tools de interação resolvem.**
    `get_accessibility_tree` numera nós como `@e{contador}` e popula `_ref_map`
    (`browser_manager.py:311-366`); `find_by_ref` resolve `@e...` para Locator
    e RECONSTRÓI o mapa se estiver obsoleto (`browser_manager.py:530-540`);
@@ -237,11 +215,11 @@ protocolo. Ao mexer aqui, respeite o WIP não commitado no arquivo.
    automático em caso de staleness). Qualquer mudança no formato quebra o
    protocolo agente↔tools.
 
-4. **Erros nunca escapam como exceção pelo stdio.** Sempre `TextContent` com
+3. **Erros nunca escapam como exceção pelo stdio.** Sempre `TextContent` com
    `ERROR: [tipo] - mensagem - sugestão` (`server.py:29-32`, `tools.py:78-93`).
    Clientes MCP e o agente dependem desse formato para triagem.
 
-5. **Modos mutuamente exclusivos, um browser por processo** (seção de modos
+4. **Modos mutuamente exclusivos, um browser por processo** (seção de modos
    acima). `connect_to_extension` derruba o Playwright; `disconnect_extension`
    exige novo start (`browser_manager.py:289-297`).
 
@@ -334,21 +312,9 @@ feita no boot do servidor aquece um objeto que as tools nunca usam. Funciona
 por acidente de design, não por design. O comentário "Singleton instance" em
 `llm_client.py:100` é enganoso.
 
-### 6. Em modo restrito, `browser_execute_javascript` está permitido e inútil ao mesmo tempo
-
-A tool está em `ALLOWED_TOOLS` (`restricted_profile.py:76-82`), mas
-`ALLOWED_SCRIPT_HASHES` está vazio (`restricted_profile.py:97`), e allowlist
-vazia rejeita TODO script (`restricted_profile.py:110-112`). É
-secure-by-default intencional, mas na prática `browser_execute_javascript`
-fica inerte no modo restrito até alguém popular hashes — independentemente de
-quantas tools estejam na allowlist (o número muda; ver estado atual em
-[[browser-mcp-perfil-restrito]], lar canônico das allowlists).
-
 ## Proveniência e manutenção
 
-Fatos datados de **2026-07-13** (working tree, branch
-`etapa-1-ifood-restricted-profile`, HEAD `ddf9bc1`, com WIP não commitado em
-`tools.py` e `websocket_server.py`). Re-verificação de uma linha para cada
+Fatos datados de **2026-07-18**. Re-verificação de uma linha para cada
 fato volátil (rode da raiz do repo, venv ativado onde houver `python`):
 
 | Fato | Comando |
@@ -364,11 +330,10 @@ fato volátil (rode da raiz do repo, venv ativado onde houver `python`):
 | Broadcast sem roteamento | `grep -n 'msg_type == "command"' src/browser_mcp/websocket_server.py` |
 | Singleton BrowserManager | `grep -n "__new__" src/browser_mcp/browser_manager.py` |
 | LLMClient sem singleton | `grep -cE "__new__|_instance" src/browser_mcp/llm_client.py` (espere 0) |
-| Allowlists do modo restrito | `grep -n "ALLOWED_" src/browser_mcp/restricted_profile.py` |
 | Origem do modo extensão (Kimi WebBridge) | `git show cbc8e28:analise_extensao_necessaria.md \| grep -n "Kimi WebBridge"` |
-| Actions da extensão | `grep -c "case '" extension/background.js` (23 em 2026-07-13) |
+| Actions da extensão | `grep -c "case '" extension/background.js` (23 em 2026-07-18) |
 | Permissions MV3 | `grep -n -A9 '"permissions"' extension/manifest.json` |
-| Suíte de testes | `python -m pytest tests/ -q` (85 passed em ~56s em 2026-07-13) |
+| Suíte de testes | `python -m pytest tests/ -q` (43 testes coletados em 2026-07-18) |
 | Loop do agente | `grep -n "OBSERVE -> THINK" src/browser_mcp/agent.py` |
 | Regra isTrusted no prompt do agente | `grep -n "isTrusted" src/browser_mcp/agent.py` |
 

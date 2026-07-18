@@ -5,11 +5,11 @@ description: >-
   evidência AQUI, como rodar a suíte de testes, como adicionar teste de cada
   tipo e como o lint/CI portam-se de verdade. Use quando o assunto for "rodar
   os testes", "adicionar teste", "pytest", "a suíte", "test_smoke",
-  "test_tools", "test_agent", "test_restricted_profile", "MockLLM", "fixture
+  "test_tools", "test_agent", "MockLLM", "fixture
   browser_manager", "CI", "lint", "ruff", "ruff format", "mypy", "cobertura",
   "evidência", "provar que funciona", "teste adversarial", "asyncio_mode",
   "playwright install", "por que o CI não roda na minha branch", ou quando
-  alguém afirmar que algo "funciona" / "é seguro" sem teste verde nomeado.
+  alguém afirmar que algo "funciona" sem teste verde nomeado.
 ---
 
 # Validação e QA — MCP Browser Server
@@ -24,10 +24,9 @@ Antes de dizer que algo "funciona", releia a seção **Disciplina de evidência*
 ## Regra-mãe
 
 > Uma afirmação de comportamento só é aceita com **(1) um teste verde nomeado**
-> mais **(2) o comando exato que o roda**. Uma afirmação de segurança exige,
-> além disso, **um teste adversarial** que tenta quebrar o controle e falha.
+> mais **(2) o comando exato que o roda**.
 
-Sem esses dois (ou três) itens, a afirmação é hipótese — trate-a como
+Sem esses dois itens, a afirmação é hipótese — trate-a como
 [[browser-mcp-metodologia-e-prova]] manda.
 
 ---
@@ -36,15 +35,14 @@ Sem esses dois (ou três) itens, a afirmação é hipótese — trate-a como
 
 A suíte vive em `tests/`. Config em `pyproject.toml` (`[tool.pytest.ini_options]`
 com `asyncio_mode = "auto"` — por isso testes `async def` rodam sem decorador
-`@pytest.mark.asyncio` em `test_tools.py`/`test_agent.py`). São **4 arquivos**,
-**85 testes coletados** (medido 2026-07-17: `85 tests collected`).
+`@pytest.mark.asyncio` em `test_tools.py`/`test_agent.py`). São **3 arquivos**,
+**43 testes coletados** (medido 2026-07-18: `43 tests collected`).
 
 | Arquivo | Testes | Precisa de browser real? | Precisa de rede? | O que prova |
 |---|---|---|---|---|
-| `tests/test_smoke.py` | E2E | **Sim** (Chromium via Playwright) | **Sim** (httpbin.org) | Navegação, type, click, screenshot, stealth, overlay, nova aba — fim a fim |
-| `tests/test_tools.py` | camada MCP | **Sim** | Parcial (usa `data:` URIs + example.com) | Cada tool via `app.call_tool(...)` retorna o texto esperado |
-| `tests/test_agent.py` | agente | Parcial (fixture sobe browser; parsing/prune não) | Não (MockLLM) | Loop do agente SEM LLM real: parsing, prune, max_iterations, erros consecutivos |
-| `tests/test_restricted_profile.py` | segurança | **Não** (funções puras) | Não | Allowlists de domínio/tool/JS, look-alike domains, token 0600, loopback, sanitização |
+| `tests/test_smoke.py` | 10 (E2E) | **Sim** (Chromium via Playwright) | **Sim** (httpbin.org) | Navegação, type, click, screenshot, stealth, overlay, nova aba — fim a fim |
+| `tests/test_tools.py` | 22 (camada MCP) | **Sim** | Parcial (usa `data:` URIs + example.com) | Cada tool via `app.call_tool(...)` retorna o texto esperado |
+| `tests/test_agent.py` | 11 (agente) | Parcial (fixture sobe browser; parsing/prune não) | Não (MockLLM) | Loop do agente SEM LLM real: parsing, prune, max_iterations, erros consecutivos |
 
 ### `test_smoke.py` — E2E contra browser + páginas reais
 
@@ -87,22 +85,6 @@ com `asyncio_mode = "auto"` — por isso testes `async def` rodam sem decorador
 - Testes de `_parse_response`/`_prune_messages` instanciam `BrowserAgent(None, None)`
   — **não sobem browser nem LLM**, são unitários puros.
 
-### `test_restricted_profile.py` — adversarial de segurança
-
-- Importa funções puras de `browser_mcp.restricted_profile` e as ataca
-  diretamente. **Não sobe browser.** É a camada de prova de segurança do repo.
-- Casos adversariais que você deve preservar e citar como precedente:
-  - **Typosquatting / look-alike:** `test_similar_domain_rejected` rejeita
-    `https://portal.ifood.com.br.hacker.net` e `...ifood.com.br.evil.com`.
-  - **Subdomínio não autorizado:** `test_unauthorized_subdomain_rejected`
-    rejeita `api.portal.ifood.com.br` (match é **exato**, não sufixo).
-  - **Downgrade de esquema:** `test_http_rejected` rejeita `http://` em host permitido.
-  - **`chrome://`:** `test_chrome_url_rejected`.
-  - **JS secure-by-default:** `test_script_rejected_when_allowlist_empty`
-    (allowlist vazia ⇒ tudo rejeitado).
-  - **Permissão de token:** 0600/0400 passam, 0644 falha, ausente falha.
-- Semântica dos 6 controles: [[browser-mcp-perfil-restrito]].
-
 ---
 
 ## RODE a suíte — comando canônico e números reais
@@ -114,55 +96,34 @@ Use o Python do venv (`.venv/bin/python` local roda 3.14; o CI roda 3.11/3.12/3.
 ./.venv/bin/pytest tests/ -q
 
 # por camada
-./.venv/bin/pytest tests/test_restricted_profile.py -v   # rápido, sem browser
 ./.venv/bin/pytest tests/test_agent.py -v                # parcial, sem LLM
 ./.venv/bin/pytest tests/test_tools.py -v                # browser
 ./.venv/bin/pytest tests/test_smoke.py -v                # browser + rede
 
+# testes rápidos sem browser (parsing/prune do agente)
+./.venv/bin/pytest tests/test_agent.py -k "parse or prune"
+
 # só coletar (sanidade, <1s)
-./.venv/bin/pytest tests/ --collect-only -q              # => 85 tests collected
+./.venv/bin/pytest tests/ --collect-only -q              # => 43 tests collected
 ```
 
-### Resultado medido HOJE (2026-07-17, branch `etapa-1-ifood-restricted-profile`, Python 3.14.6)
+### Resultado medido (2026-07-18, Python 3.14.6)
 
-```
-8 failed, 77 passed, 2 warnings in 229.01s (0:03:49)
-85 tests collected
-```
+`43 tests collected`. Os testes que não sobem browser passam de imediato; os de
+browser (`test_tools.py`, `test_smoke.py`) exigem Chromium e rede.
 
-**Isto é uma regressão em relação ao baseline de 2026-07-13** (85 passando em
-55.71s). As 8 falhas se dividem em dois grupos — reporte-os fielmente, não os
-esconda:
-
-#### Grupo A — 2 falhas causadas pelo WIP não commitado (a suíte precisa acompanhar)
-
-| Teste que falha | Por quê |
-|---|---|
-| `test_restricted_profile.py::TestToolAllowlist::test_unauthorized_tool_rejected` | Afirma que `browser_click` e `browser_type` são **rejeitados**. O WIP em `restricted_profile.py` **adicionou** ambos a `ALLOWED_TOOLS`. |
-| `test_restricted_profile.py::TestValidateToolCall::test_disallowed_tool_rejected_in_restricted_mode` | Afirma `browser_click` rejeitado em modo restrito — o WIP o tornou permitido. |
-
-O dono do repo adicionou **2 hosts** (`partners-auth.ifood.com.br`,
-`developer.ifood.com.br`) e **2 tools** (`browser_type`, `browser_click`) às
-allowlists (confirmado com `git diff HEAD -- src/browser_mcp/restricted_profile.py`).
-**Diagnóstico:** o código de segurança mudou mas os testes adversariais ainda
-codificam a política antiga. Isto é exatamente a falha "a suíte não acompanhou
-o WIP" — **não é bug de teste, é dívida de sincronização**. Quem commitar o WIP
-deve atualizar esses 2 testes na mesma mudança (regra de [[browser-mcp-controle-de-mudancas]]:
-mudança de segurança e seu teste andam juntos).
-
-#### Grupo B — 6 falhas de flakiness de rede (NÃO relacionadas ao WIP)
-
-`test_smoke.py::{test_navigate_and_get_url, test_go_back, test_type_text,
-test_execute_javascript, test_new_tab, test_click_navigation}` — todas com
-`Page.goto: Timeout 30000ms ... waiting until "networkidle"` ou click timeout
-contra `httpbin.org`. `curl https://httpbin.org/get` responde `200` em ~1s, mas
-o `networkidle` do Playwright estoura sob httpbin lento. **Causa: rede/latência,
+**Flakiness conhecida de rede.** Alguns smokes de `test_smoke.py`
+(`test_navigate_and_get_url`, `test_go_back`, `test_type_text`,
+`test_execute_javascript`, `test_new_tab`, `test_click_navigation`) podem falhar
+com `Page.goto: Timeout 30000ms ... waiting until "networkidle"` contra
+`httpbin.org`. `curl https://httpbin.org/get` responde `200` em ~1s, mas o
+`networkidle` do Playwright estoura sob httpbin lento. **Causa: rede/latência,
 não código.** Reexecute isoladamente para confirmar não-determinismo antes de
 tratar como regressão de produto.
 
 > **Regra de reporte:** ao rodar a suíte, sempre classifique cada falha em
-> "WIP", "flaky/rede" ou "regressão real de código". Nunca reporte só o número
-> agregado — `8 failed` sozinho engana.
+> "flaky/rede" ou "regressão real de código". Nunca reporte só o número
+> agregado — um `N failed` sozinho engana.
 
 **2 `DeprecationWarning`** persistem (`websockets.server.WebSocketServerProtocol`
 e `websockets.legacy`); esperados e rastreados em [[browser-mcp-build-e-ambiente]].
@@ -199,26 +160,7 @@ async def test_minha_tool(browser_manager):
     assert "Mensagem esperada em PT-BR" in result[0].text
 ```
 
-### 2. Regra de segurança nova → em `tests/test_restricted_profile.py`
-
-Escreva **o caso feliz E o adversarial**. Uma regra sem teste que tenta
-burlá-la não está provada.
-
-```python
-def test_meu_host_permitido_passa(self):
-    assert is_domain_allowed("https://novo-host.ifood.com.br/x") is True
-
-def test_lookalike_do_meu_host_rejeitado(self):
-    # Adversarial: quem tenta se passar pelo host tem de falhar.
-    assert is_domain_allowed("https://novo-host.ifood.com.br.attacker.io") is False
-    assert is_domain_allowed("https://sub.novo-host.ifood.com.br") is False   # subdomínio != exato
-    assert is_domain_allowed("http://novo-host.ifood.com.br") is False        # downgrade de esquema
-```
-
-Para validar pela pipeline completa, use `RestrictedProfile.validate_tool_call`
-com `monkeypatch.setenv("IFOOD_RESTRICTED_MODE", "1")` e afirme `"REJECTED" in reason`.
-
-### 3. Comportamento do agente → em `tests/test_agent.py`
+### 2. Comportamento do agente → em `tests/test_agent.py`
 
 Programe respostas no `MockLLM`. **Não chame LLM real.** Para lógica pura
 (parsing/prune), instancie `BrowserAgent(None, None)`.
@@ -245,7 +187,6 @@ def test_parse_de_algo_novo():
 
 | Camada | Prova | NÃO prova |
 |---|---|---|
-| `test_restricted_profile.py` | Que as allowlists e a sanitização rejeitam o que devem, incluindo ataques nomeados | Que o modo restrito está **plugado** em runtime na tool call real (isso é integração; ver estado WIP em [[browser-mcp-perfil-restrito]]) |
 | `test_tools.py` | Que cada tool retorna a mensagem correta contra um browser real | Confiabilidade sob páginas hostis/AJAX pesado; concorrência de múltiplos clientes |
 | `test_smoke.py` | Que o fluxo E2E funciona contra sites reais | Estabilidade — é flaky por rede; não é gate de regressão fino |
 | `test_agent.py` (MockLLM) | Parsing, prune, tetos e tratamento de erro do **loop** | **A qualidade de decisão de um LLM real.** MockLLM devolve respostas roteirizadas; não há benchmark de taxa de sucesso do agente |
@@ -289,20 +230,19 @@ ruído de formatação. Política completa: [[browser-mcp-controle-de-mudancas]]
 
 ## CI real — o que dispara, onde, e o que NÃO roda
 
-Fonte: `.github/workflows/ci.yml` (lido 2026-07-17).
+Fonte: `.github/workflows/ci.yml` (lido 2026-07-18).
 
 - **Gatilho:** só `push`/`pull_request` para `main` **ou** `master`. Nenhuma
-  outra branch aciona CI. **A branch atual (`etapa-1-ifood-restricted-profile`)
-  NUNCA passou por CI** — não confie em "verde" que não existe.
+  outra branch aciona CI — não confie em "verde" numa branch de trabalho, ele
+  não existe.
 - **Matriz:** Python `3.11`, `3.12`, `3.13` (o local roda 3.14 — divergência de
   versão; ver [[browser-mcp-build-e-ambiente]]).
 - **Jobs:**
-  1. `lint` — `ruff check` + `ruff format --check`. Os demais jobs têm
-     `needs: lint`, então **se o lint falhar, nada mais roda**. Como o lint
-     falha hoje (17 erros), a suíte nunca chegaria a executar no CI.
+  1. `lint` — `ruff check` + `ruff format --check`. O job `test` tem
+     `needs: lint`, então **se o lint falhar, o test não roda**. O lint hoje
+     passa limpo no escopo do CI.
   2. `test` — `pytest tests/test_smoke.py tests/test_tools.py tests/test_agent.py -v`
-     (o "core"). **Não inclui `test_restricted_profile.py`.**
-  3. `restricted-profile` — `pytest tests/test_restricted_profile.py -v`, job dedicado.
+     (o "core") — a suíte inteira, já que hoje há só esses 3 arquivos.
 - **`mypy` NÃO roda no CI.** Está nas dev deps do `pyproject.toml`
   (`mypy>=1.8`) e há `[tool.mypy]` configurado, mas `grep mypy .github/workflows/ci.yml`
   retorna **0** ocorrências. Não trate type-check como gate — ele não é.
@@ -319,10 +259,8 @@ Fonte: `.github/workflows/ci.yml` (lido 2026-07-17).
 |---|---|
 | "essa tool funciona" | teste em `test_tools.py` nomeado + `./.venv/bin/pytest tests/test_tools.py::test_x -q` verde |
 | "o agente completa a tarefa" | teste em `test_agent.py` com MockLLM roteirizado + comando. E lembre: não prova qualidade de LLM real |
-| "esse domínio/tool é bloqueado" | teste adversarial em `test_restricted_profile.py` (caso happy + caso de burla que falha) — cite `test_similar_domain_rejected` como padrão |
-| "está seguro" | controle + teste que **tenta violá-lo** e é rejeitado. Sem adversarial, não é segurança |
 | "passou no CI" | a branch tem de ter ido a `main`/`master`; caso contrário CI nunca rodou |
-| "não quebra lint" | `ruff check` e `ruff format --check` exit 0 — hoje ambos falham |
+| "não quebra lint" | `ruff check src/browser_mcp tests` e `ruff format --check src/browser_mcp tests` exit 0 |
 
 Fundamento metodológico (barra de evidência, refutação designada, prever
 números antes de rodar): [[browser-mcp-metodologia-e-prova]].
@@ -353,25 +291,20 @@ números antes de rodar): [[browser-mcp-metodologia-e-prova]].
 
 ## Proveniência e manutenção
 
-- **Verificado em 2026-07-17** rodando os comandos nesta skill no venv local
-  (`.venv/bin`, Python 3.14.6), branch `etapa-1-ifood-restricted-profile` **com
-  WIP não commitado** em `src/browser_mcp/restricted_profile.py`,
-  `tools.py`, `websocket_server.py`.
+- **Verificado em 2026-07-18** rodando os comandos nesta skill no venv local
+  (`.venv/bin`, Python 3.14.6).
 - **Números datados (podem mudar):**
-  - Suíte: **85 testes coletados**; execução completa **8 failed, 77 passed em
-    229s** (2 falhas WIP em `test_restricted_profile.py` + 6 flaky de rede em
-    `test_smoke.py`). Baseline 2026-07-13: 85 passando em 55.71s.
-  - `ruff check`: **17 erros** (exit 1). `ruff format --check`: **14 a
-    reformatar / 3 ok** (exit 1). Baseline HEAD anterior: ~19 erros / 17 a reformatar.
+  - Suíte: **43 testes coletados** (`test_smoke.py` 10, `test_tools.py` 22,
+    `test_agent.py` 11). Alguns smokes são flaky por rede (httpbin/networkidle).
+  - `ruff check src/browser_mcp tests` e `ruff format --check src/browser_mcp tests`:
+    **limpos** (exit 0).
   - **2 `DeprecationWarning`** de `websockets`.
   - Contagem de tools: `grep -c "^@app.tool" src/browser_mcp/tools.py` → **39**;
-    README diz **37 ferramentas**. **Divergência aberta** (uma skill irmã citava
-    41 numa medição anterior — a contagem é volátil e o README está defasado).
+    README diz **37 ferramentas**. **Divergência aberta** (sem a âncora `^` o
+    grep dá 41, contando 2 docstrings — o README está defasado).
 - **`mypy` NÃO está no CI** (confirmado: `grep mypy .github/workflows/ci.yml` = 0),
   apesar de estar nas dev deps.
 - **Fatos NÃO confirmados / a revalidar:**
-  - Se o WIP for commitado, os 2 testes do Grupo A devem ser atualizados; até
-    lá a suíte "falha por design divergente".
   - Se o CI passa de fato no "core" depende de o runner ter Chromium do
     Playwright — o `ci.yml` não roda `playwright install`, então isso é dúvida
     aberta até alguém observar um run em `main`/`master`.

@@ -8,8 +8,8 @@ description: >-
   designada; prever números ANTES de rodar), ciclo de vida da ideia (candidata
   -> flag -> medição -> adoção ou aposentadoria documentada) e seis receitas de
   prova com exemplos resolvidos da história deste repo: experimento
-  discriminatório (regra do click com isTrusted), teste adversarial
-  (test_restricted_profile.py, domínios look-alike), medição de linha de base,
+  discriminatório (regra do click com isTrusted), teste adversarial (autenticação
+  do WebSocket bridge), medição de linha de base,
   observação de rede (mapeamento i-Educar /module/DynamicInput/*), verificação
   de alegação documental (README "37 tools" vs contagem real via grep ancorado)
   e refutação designada. Use ao decidir se a evidência é suficiente, ao desenhar
@@ -59,11 +59,11 @@ Regras práticas:
 3. Um mecanismo que explica só as observações convenientes é uma
    racionalização, não uma explicação.
 
-Exemplo do padrão neste repo: os testes do perfil restrito verificam tanto o
-comportamento positivo (bloqueia em modo restrito) quanto o negativo (NÃO
-bloqueia em modo padrão — `tests/test_restricted_profile.py:409-440`,
-classe `TestDefaultMode`). Um mecanismo de validação que só fosse testado no
-caminho de bloqueio poderia estar bloqueando tudo, sempre.
+Exemplo do padrão neste repo: os testes do agente cobrem tanto o caminho feliz
+(`test_execute_task_simple`) quanto os negativos — teto de iterações
+(`test_max_iterations`) e erros consecutivos (`test_consecutive_errors`) em
+`tests/test_agent.py`. Um mecanismo de loop testado só no caminho de sucesso
+poderia estar ignorando silenciosamente as condições de parada.
 
 ## A.2 Hipótese → prever números ANTES de rodar → rodar → comparar
 
@@ -102,9 +102,9 @@ candidata → flag/experimento isolado → medição → adoção documentada
 novo daqui a três meses. Registre a aposentadoria com a mesma disciplina da
 adoção.
 
-Precedente de isolamento por flag neste repo: o perfil restrito inteiro é
-opt-in via `IFOOD_RESTRICTED_MODE` — desligado por padrão, com testes que
-provam os dois estados (`tests/test_restricted_profile.py:409-440`).
+Precedente de isolamento por flag neste repo: o `STEALTH_MODE` é opt-in via env
+var (`browser_manager.py:42`) — comportamento anti-detecção fica atrás de flag,
+não no caminho padrão de todo teste.
 
 ## A.4 De onde boas ideias vieram historicamente AQUI
 
@@ -181,23 +181,23 @@ nomeado e permanente.
 4. Cubra também o caminho legítimo, para provar que a defesa não bloqueia
    tudo (senão o teste adversarial é trivialmente satisfeito).
 
-**Exemplo resolvido REAL — `tests/test_restricted_profile.py`:**
+**Controle de segurança vivo no repo — a autenticação do WebSocket bridge:**
+`websocket_server.py` só aceita conexões cujo `Origin` começa com
+`chrome-extension://` e cujo token bate por `hmac.compare_digest`
+(comparação timing-safe, não `==`). Esse é o controle a atacar adversarialmente
+se você mexer nele. Vetores que um teste adversarial deveria cobrir:
 
-| Vetor de ataque | Payload literal | Teste (linha) |
+| Vetor de ataque | Payload | Resultado esperado |
 |---|---|---|
-| Look-alike / typosquatting | `https://portal.ifood.com.br.hacker.net` e `https://partners-auth.ifood.com.br.evil.com` | `test_similar_domain_rejected`, linhas 61-65 |
-| Subdomínio não autorizado (match exato apenas) | `https://api.portal.ifood.com.br`, `https://staging.developer.ifood.com.br` | `test_unauthorized_subdomain_rejected`, linhas 67-72 |
-| Downgrade para HTTP | `http://portal.ifood.com.br/` mesmo sendo host permitido | `test_http_rejected`, linhas 51-54 |
-| URL privilegiada do browser | `chrome://settings`, `chrome://version` | `test_chrome_url_rejected`, linhas 56-59 |
-| Domínio totalmente estranho | `https://google.com`, `https://evil.com` | `test_unauthorized_domain_rejected`, linhas 74-78 |
-| Host removido da allowlist | `https://gestordepedidos.ifood.com.br/` (permitido até 2026-07-17, depois removido do escopo) | `test_removed_host_rejected`, linhas 80-83 |
-| URL malformada / vazia | `not-a-url`, `""` | `test_malformed_url_rejected`, linhas 78-81 |
-| Script JS não registrado (hash) | qualquer código fora de `ALLOWED_SCRIPT_HASHES`; allowlist vazia rejeita TUDO (secure-by-default) | `test_script_rejected_when_allowlist_empty`, linhas 141-145 |
-| Token com permissões inseguras | arquivo `0644` (world-readable) | `test_insecure_permissions`, linhas 290-306 |
+| Origin forjado | `Origin: https://evil.com` | 403 |
+| Sem token | conexão sem `Authorization`/`?token=` | 401 |
+| Token errado | token de 1 byte a menos | 401 (e a comparação é timing-safe) |
+| Payload gigante | frame > `MAX_PAYLOAD_SIZE` (64 MiB) | conexão derrubada |
 
-E o caminho legítimo, provando que a defesa não é um bloqueio cego:
-`test_allowed_https_domain` (linhas 46-49) e
-`test_navigate_allowed_domain_passes` (linhas 207-214).
+**Lacuna declarada (2026-07-18):** não há hoje uma suíte adversarial dedicada
+para essa camada — os testes atuais (`tests/`) cobrem tools e agente, não o
+handshake do WS sob ataque. Ao tocar na autenticação do bridge, escreva o teste
+adversarial junto (é a regra de [[browser-mcp-controle-de-mudancas]]).
 
 ## B.3 Prova por medição de linha de base
 
@@ -215,11 +215,11 @@ ANTERIOR.
 5. Para sistemas não-determinísticos (o agente LLM), N ≥ 3 runs por
    condição — ver anti-padrão C.3.
 
-**Contra-exemplo honesto do repo (verificado em 2026-07-13):** hoje NÃO
+**Contra-exemplo honesto do repo (verificado em 2026-07-18):** hoje NÃO
 existe linha de base do agente. Não há benchmark de taxa de sucesso do
 `BrowserAgent` no repositório — `tests/` contém apenas testes unitários
-(`test_agent.py`, `test_tools.py`, `test_smoke.py`,
-`test_restricted_profile.py`), nenhum mede sucesso de tarefa fim-a-fim.
+(`test_agent.py`, `test_tools.py`, `test_smoke.py`), nenhum mede sucesso de
+tarefa fim-a-fim.
 Consequência prática: **qualquer** alegação atual de "o agente melhorou" é
 inverificável por construção. Essa lacuna é exatamente o que a campanha de
 confiabilidade ataca — ver
@@ -358,7 +358,6 @@ designada.
 | `browser-mcp-contrato-de-arquitetura` | Invariantes que hipóteses e mecanismos não podem violar |
 | `browser-mcp-config-e-flags` | Como isolar experimentos atrás de flags (estágio 2 do ciclo A.3) |
 | `browser-mcp-build-e-ambiente` / `browser-mcp-executar-e-operar` | Reproduzir o ambiente onde as medições rodam |
-| `browser-mcp-perfil-restrito` | O objeto do exemplo B.2 (allowlists, modo iFood) |
 | `browser-automacao-referencia` | Referência das ferramentas citadas nos exemplos |
 | `browser-mcp-fronteira-e-posicionamento` | Contexto competitivo por trás do benchmarking (A.4, C.4) |
 
@@ -366,10 +365,11 @@ designada.
 
 # Proveniência e manutenção
 
-**Fontes primárias verificadas (re-verificado em 2026-07-17):**
+**Fontes primárias verificadas (re-verificado em 2026-07-18):**
 
-- `tests/test_restricted_profile.py` — lido integralmente; linhas citadas em
-  B.2 conferidas no working tree.
+- `src/browser_mcp/websocket_server.py` — autenticação do bridge (origin
+  `chrome-extension://`, token via `hmac.compare_digest`, `MAX_PAYLOAD_SIZE`),
+  o controle de segurança citado em B.2.
 - `src/browser_mcp/agent.py` — regra `isTrusted` na linha 38 (regra 9 do
   system prompt) e na linha 64 (descrição de `browser_execute_javascript`).
 - `git show cbc8e28:aprendizado_webbridge.md` — benchmarking WebBridge
@@ -380,17 +380,17 @@ designada.
   `/module/DynamicInput/*`.
 - `git show cbc8e28 --no-patch` — mensagem do commit ("43/43 pytest
   passing"; "Code review by Claude Fable 5").
-- `grep -c '^@app.tool' src/browser_mcp/tools.py` → **39** em 2026-07-17,
+- `grep -c '^@app.tool' src/browser_mcp/tools.py` → **39** em 2026-07-18,
   contra "37" em `README.md:4/8/116/211`. (Sem a âncora `^`, o grep dá 41 por
   contar 2 docstrings — armadilha documentada em B.5.)
 
 **Fatos voláteis (re-verificar antes de citar):**
 
-- Contagem de ferramentas (39 via grep ancorado em 2026-07-17; 41 sem âncora)
+- Contagem de ferramentas (39 via grep ancorado em 2026-07-18; 41 sem âncora)
   e a divergência com o README — qualquer um dos dois pode ter mudado.
 - Ausência de linha de base do agente (B.3) — a campanha de confiabilidade
   deve eliminá-la; quando existir, atualize B.3 com o exemplo positivo.
-- Números de linha de `agent.py` e `test_restricted_profile.py`.
+- Números de linha de `agent.py` e `websocket_server.py`.
 
 **Manutenção:** ao adotar ou aposentar uma ideia (A.3), esta skill não é o
 registro — o registro é `browser-mcp-arqueologia-de-falhas` (aposentadorias)

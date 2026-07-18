@@ -5,21 +5,20 @@ description: >
   "click não funciona" / "click não faz nada" / evento ignorado; "extensão não conecta" /
   WebSocket 401/403 / service worker dormiu; "timeout esperando elemento" / dropdown vazio /
   cascata AJAX; overlay/indicador visual não aparece; "agente em loop" / repete ação /
-  estoura iterações; tool retorna "REJECTED"; "ERROR: [Server] - ..." genérico; startup
+  estoura iterações; "ERROR: [Server] - ..." genérico; startup
   falha silenciosamente. Cada sintoma tem causa provável, experimento discriminatório
   copiável e referência file:line.
 ---
 
 # Playbook de Depuração — browser-mcp-server
 
-Runbook sintoma → causa → experimento para os modos de falha REAIS deste projeto, construído lendo o código (mensagens de erro, guards, timeouts) e os documentos históricos recuperáveis via `git show cbc8e28:<doc>.md`. Linhas verificadas em 2026-07-13 no branch `etapa-1-ifood-restricted-profile` — re-confira após refactors grandes.
+Runbook sintoma → causa → experimento para os modos de falha REAIS deste projeto, construído lendo o código (mensagens de erro, guards, timeouts) e os documentos históricos recuperáveis via `git show cbc8e28:<doc>.md`. Linhas verificadas em 2026-07-17 — re-confira após refactors grandes.
 
 ## Quando NÃO usar esta skill
 
 - **Setup/instalação quebrada** (dependências, playwright install, venv) → `browser-mcp-build-e-ambiente`.
 - **Como rodar/operar o servidor** (comandos de start, modos) → `browser-mcp-executar-e-operar`.
 - **Significado de cada flag/env var** → `browser-mcp-config-e-flags`.
-- **Configurar/entender o perfil restrito iFood** → `browser-mcp-perfil-restrito` (aqui só triamos o sintoma "REJECTED").
 - **A crônica completa dos incidentes** → `browser-mcp-arqueologia-de-falhas` (este playbook referencia as histórias, não as reconta).
 - **Catálogo das ferramentas de medição** (network log, HAR, console) → `browser-mcp-diagnosticos-e-ferramentas`.
 - **Teoria por trás de isTrusted/CSP/MV3** → `browser-automacao-referencia`.
@@ -46,9 +45,8 @@ Duas armadilhas de "engolimento" tornam isso obrigatório — ver sintomas 7 e 8
 | Timeout esperando elemento / dropdown vazio | 3 |
 | Overlay/indicador visual não aparece | 4 |
 | Agente em loop / repete ação / estoura iterações | 5 |
-| Tool retorna `REJECTED: ...` | 6 |
-| `ERROR: [Server] - ...` genérico sem stack | 7 |
-| Startup "funciona" mas browser não iniciou | 8 |
+| `ERROR: [Server] - ...` genérico sem stack | 6 |
+| Startup "funciona" mas browser não iniciou | 7 |
 
 ---
 
@@ -201,28 +199,7 @@ print(a._parse_response(resp))
 .venv/bin/python -m pytest tests/test_agent.py -q   # os testes de parse e guards devem passar
 ```
 
-## 6. "Tool retorna REJECTED" (modo restrito)
-
-**Não é bug.** É o perfil restrito iFood ativo: `IFOOD_RESTRICTED_MODE=1` (`src/browser_mcp/restricted_profile.py:31`). A validação roda em `tools.py:64-67` ANTES de qualquer execução e devolve o motivo como texto. Detalhes e operação do perfil: skill `browser-mcp-perfil-restrito`.
-
-| Mensagem (prefixo) | Causa | Referência |
-|---|---|---|
-| `REJECTED: Tool '...' is not in the restricted allowlist` | Tool fora da allowlist (working tree: 5 tools; HEAD: 3 — WIP intencional). Valores mudam — lar canônico e re-verificação: [[browser-mcp-perfil-restrito]] | `restricted_profile.py:76-82,251-256` |
-| `REJECTED: Domain '...' is not in the restricted allowlist` | Host fora da allowlist (working tree: 4 hosts; HEAD: 2 — WIP intencional), subdomínio, ou URL não-HTTPS (match exato de hostname). Lista canônica: [[browser-mcp-perfil-restrito]] | `restricted_profile.py:39-44,45-66,259-269` |
-| `REJECTED: Script hash '...' is not in the allowlist` | SHA-256 do código JS não pré-aprovado. **`ALLOWED_SCRIPT_HASHES` vazio rejeita TUDO (secure-by-default)** — e ele nasce vazio | `restricted_profile.py:97,105-112,271-281` |
-
-**Triagem em 2 comandos:**
-
-```bash
-env | grep IFOOD_RESTRICTED_MODE   # "1" = perfil ativo; qualquer outra coisa = perfil inativo
-# Hash do script que você tentou executar (para comparar com a allowlist):
-.venv/bin/python -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" /tmp/meu_script.js
-```
-
-- Perfil ativo e você não esperava → desative (`IFOOD_RESTRICTED_MODE=0`) ou aceite as regras.
-- Perfil ativo de propósito → a mensagem REJECTED já diz exatamente qual das 3 regras barrou; para aprovar scripts, o hash vai em `ALLOWED_SCRIPT_HASHES` (`restricted_profile.py:97`) — processo na skill `browser-mcp-perfil-restrito`.
-
-## 7. "ERROR: [Server] - ..." genérico
+## 6. "ERROR: [Server] - ..." genérico
 
 **Armadilha:** o handler MCP engole QUALQUER exceção de tool e devolve só `f"ERROR: [Server] - {str(e)}"` — sem tipo, sem traceback (`src/browser_mcp/server.py:29-32`). Um `KeyError` de dict e um crash do Playwright chegam idênticos ao cliente. (Erros que passam pelo wrapper das tools ganham formato melhor — `ERROR: [Tipo] - mensagem - sugestão`, `tools.py:78-93` — se você vê o formato curto `[Server]`, a exceção estourou FORA desse wrapper, ex.: argumento inexistente na assinatura da tool, `tools.py:72`.)
 
@@ -237,7 +214,7 @@ tail -50 /tmp/mcp_stderr.log
 - `ERROR: [Server] - Ferramenta desconhecida: X` → nome de tool errado (`tools.py:70`).
 - `... unexpected keyword argument ...` → parâmetro que a tool não aceita (a chamada morre em `tools.py:72` antes do wrapper).
 
-## 8. "Startup falha silenciosamente"
+## 7. "Startup falha silenciosamente"
 
 **Armadilha:** `main()` trata falha de inicialização do browser/LLM/WebSocket como AVISO e segue em frente: `except Exception as e: print(f"[SERVER] Aviso: Falha na inicialização opcional: {e}")` (`src/browser_mcp/server.py:69-75`). O servidor stdio sobe normalmente (`server.py:77-78`), o cliente MCP conecta, lista tools — e a primeira chamada real falha porque o browser nunca iniciou ou a porta 8765 estava ocupada.
 
@@ -247,7 +224,7 @@ tail -50 /tmp/mcp_stderr.log
 grep -E "Aviso: Falha na inicialização|BrowserManager, LLMClient e WebSocketServer inicializados" /tmp/mcp_stderr.log
 ```
 
-- Só o "Aviso" aparece → leia a exceção na mesma linha. Causas típicas: chromium do Playwright ausente (`.venv/bin/playwright install chromium` — ver [[browser-mcp-build-e-ambiente]]), porta 8765 ocupada (`lsof -iTCP:8765`), token com permissão insegura em modo restrito (aí o WS server dá `sys.exit(1)` com `[WS-SERVER] FATAL:`, `websocket_server.py:84-87` / `restricted_profile.py:294-307`).
+- Só o "Aviso" aparece → leia a exceção na mesma linha. Causas típicas: chromium do Playwright ausente (`.venv/bin/playwright install chromium` — ver [[browser-mcp-build-e-ambiente]]), porta 8765 ocupada (`lsof -iTCP:8765`).
 - Linha de sucesso aparece (`server.py:73`) → o startup está OK; o problema é outro sintoma deste playbook.
 
 ---
@@ -258,11 +235,11 @@ grep -E "Aviso: Falha na inicialização|BrowserManager, LLMClient e WebSocketSe
 .venv/bin/python -m pytest tests/ -q    # suíte completa (~1 min; requer `.venv/bin/playwright install chromium`)
 ```
 
-Em 2026-07-13, no branch `etapa-1-ifood-restricted-profile` (com WIP não commitado em `tools.py`/`websocket_server.py`), a suíte é `tests/test_agent.py`, `test_restricted_profile.py`, `test_smoke.py`, `test_tools.py`; a documentação do projeto reporta 85 testes passando. Se testes falham, o problema é ambiente/regressão — vá para `browser-mcp-build-e-ambiente` ou `browser-mcp-validacao-e-qa` antes de caçar bugs de runtime.
+Em 2026-07-17, a suíte é `tests/test_agent.py`, `test_smoke.py`, `test_tools.py` (43 testes coletados). Se testes falham, o problema é ambiente/regressão — vá para `browser-mcp-build-e-ambiente` ou `browser-mcp-validacao-e-qa` antes de caçar bugs de runtime.
 
 ## Proveniência e manutenção
 
-- **Fontes primárias (todas verificadas em 2026-07-13):** `src/browser_mcp/server.py`, `tools.py`, `browser_manager.py`, `agent.py`, `extension_bridge.py`, `websocket_server.py`, `restricted_profile.py`, `visual_indicator.py`, `extension/background.js`, `tests/test_agent.py`.
+- **Fontes primárias (todas verificadas em 2026-07-17):** `src/browser_mcp/server.py`, `tools.py`, `browser_manager.py`, `agent.py`, `extension_bridge.py`, `websocket_server.py`, `visual_indicator.py`, `extension/background.js`, `tests/test_agent.py`.
 - **Docs históricos (recuperáveis do commit `cbc8e28`):** `git show cbc8e28:relatorio_ieducar.md` (cascatas AJAX), `git show cbc8e28:investigacao_indicadores_visuais.md` (overlay/CSP), `git show cbc8e28:aprendizado_webbridge.md` (@e refs, network monitoring), `git show cbc8e28:analise_extensao_necessaria.md` (por que existe a extensão). O próprio commit: `git show cbc8e28 --stat`.
 - **Volatilidade:** todos os `file:line` datam de 2026-07-13; `tools.py` e `websocket_server.py` tinham modificações não commitadas nessa data — re-verifique linhas desses dois arquivos com `grep -n` antes de citar. Ao mover código, atualize esta skill junto (processo em `browser-mcp-controle-de-mudancas`).
 - **Skills irmãs citadas:** `browser-mcp-perfil-restrito`, `browser-mcp-build-e-ambiente`, `browser-mcp-executar-e-operar`, `browser-mcp-config-e-flags`, `browser-mcp-arqueologia-de-falhas`, `browser-mcp-diagnosticos-e-ferramentas`, `browser-automacao-referencia`, `browser-mcp-campanha-confiabilidade-do-agente`, `browser-mcp-validacao-e-qa`, `browser-mcp-controle-de-mudancas`, `browser-mcp-contrato-de-arquitetura`.

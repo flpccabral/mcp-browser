@@ -1,6 +1,6 @@
 ---
 name: browser-mcp-arqueologia-de-falhas
-description: A crônica do mcp_browser — por que o projeto é como é. Consulte antes de investigar qualquer comportamento estranho, propor mudança de design ou reabrir uma discussão. Cobre histórico de investigações (i-Educar, Kimi WebBridge, indicadores visuais), becos sem saída (isTrusted em eventos sintéticos), incidentes (chave privada extension.pem vazada e purgada com filter-repo), decisões de design (modo extensão, @e refs, overlay CSS), dívidas conhecidas (lint, plano de fases fantasma) e o que cada fix P0 corrigiu. Gatilhos: "por que isso existe?", "já foi tentado?", "qual o histórico disso?", "houve algum incidente?", "de onde veio essa decisão?", "por que os hashes mudaram?", "por que JS não pode clicar?".
+description: A crônica do mcp_browser — por que o projeto é como é. Consulte antes de investigar qualquer comportamento estranho, propor mudança de design ou reabrir uma discussão. Cobre histórico de investigações (i-Educar, Kimi WebBridge, indicadores visuais), becos sem saída (isTrusted em eventos sintéticos), incidentes (chave privada extension.pem vazada e purgada com filter-repo), decisões de design (modo extensão, @e refs, overlay CSS), dívidas conhecidas (lint) e o que cada fix P0 corrigiu. Gatilhos: "por que isso existe?", "já foi tentado?", "qual o histórico disso?", "houve algum incidente?", "de onde veio essa decisão?", "por que os hashes mudaram?", "por que JS não pode clicar?".
 ---
 
 # Arqueologia de Falhas — mcp_browser
@@ -211,31 +211,12 @@ grep -n -A4 "^on:" .github/workflows/ci.yml
 
 ---
 
-## 8. Plano de fases fantasma — Phase 7/8 sem documento (2026-07-12)
-
-**Sintoma:** O CI menciona "Phase 7 — iFood security" e o commit `4c534b3` menciona "Phase 8", mas **nenhum documento do repo descreve esse plano de fases**. Você vai procurar e não vai achar — não é você.
-
-**Causa raiz:** O plano de fases do perfil restrito iFood viveu fora do repo (chat/notas). Só sobraram as referências laterais. Atenção: `docs/maturity-analysis.md` tem "Fase 1-4", mas é **outro plano** (publicação/documentação/comunidade), não o das Phases 7/8.
-
-**Evidência:**
-
-```bash
-grep -n "Phase" .github/workflows/ci.yml            # linha ~78: "Phase 7 — iFood security"
-git log --oneline --all --grep="Phase"              # 4c534b3 "Phase 8"
-grep -rn "Phase [5-9]" README.md docs/ 2>/dev/null  # vazio — o plano não está documentado
-```
-
-**Status: ABERTO — lacuna de documentação conhecida.** As fontes vivas do perfil restrito são o código (`tests/test_restricted_profile.py`, WIP em `tools.py`/`websocket_server.py` na branch `etapa-1-ifood-restricted-profile`) e a skill `browser-mcp-perfil-restrito`. Se você reconstruir o plano, documente-o no repo e atualize esta entrada.
-
----
-
 ## Quando NÃO usar esta skill
 
 - **Depuração ativa de um problema acontecendo agora** → `browser-mcp-playbook-de-depuracao` (a arqueologia é consulta histórica, não triagem).
 - **Entender o design atual do sistema** → `browser-mcp-contrato-de-arquitetura` (aqui está o *porquê* histórico; lá, o *o quê* resultante).
 - **Regras do que pode/não pode mudar** → `browser-mcp-controle-de-mudancas` (os inegociáveis derivados destes incidentes moram lá).
 - **Setup, build, dependências** → `browser-mcp-build-e-ambiente`. **Rodar/operar** → `browser-mcp-executar-e-operar`. **Flags e configuração** → `browser-mcp-config-e-flags`.
-- **Perfil restrito iFood (estado atual)** → `browser-mcp-perfil-restrito`.
 - **Ferramentas de diagnóstico** → `browser-mcp-diagnosticos-e-ferramentas`. **QA/validação** → `browser-mcp-validacao-e-qa`.
 - **Referência de automação de browser em geral** → `browser-automacao-referencia`.
 - **Confiabilidade do agente LLM** → `browser-mcp-campanha-confiabilidade-do-agente`. **Posicionamento vs concorrentes** → `browser-mcp-fronteira-e-posicionamento`. **Método de prova/verificação** → `browser-mcp-metodologia-e-prova`.
