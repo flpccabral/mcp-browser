@@ -160,7 +160,9 @@ class WebSocketServer:
                     continue
                 await self._handle_message(msg, ws)
         except websockets.exceptions.ConnectionClosed as e:
-            print(f"[WS-SERVER] Conexão fechada: {client_addr_str} (code={e.code})", file=sys.stderr)
+            print(
+                f"[WS-SERVER] Conexão fechada: {client_addr_str} (code={e.code})", file=sys.stderr
+            )
         except Exception as e:
             print(f"[WS-SERVER] Erro no handler: {e}", file=sys.stderr)
         finally:
@@ -179,7 +181,9 @@ class WebSocketServer:
 
         guid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
-        async def _handle_builtin_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        async def _handle_builtin_client(
+            reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+        ) -> None:
             addr = writer.get_extra_info("peername")
             print(f"[WS-SERVER] Cliente builtin conectado: {addr}", file=sys.stderr)
 
@@ -216,7 +220,7 @@ class WebSocketServer:
                     for p in proto.split(","):
                         p = p.strip()
                         if p.startswith("mcp-token."):
-                            provided = p[len("mcp-token."):]
+                            provided = p[len("mcp-token.") :]
                             break
                 if provided is None:
                     with contextlib.suppress(Exception):
@@ -243,9 +247,7 @@ class WebSocketServer:
                     await writer.wait_closed()
                     return
 
-                accept = base64.b64encode(
-                    hashlib.sha1((key + guid).encode()).digest()
-                ).decode()
+                accept = base64.b64encode(hashlib.sha1((key + guid).encode()).digest()).decode()
 
                 response = (
                     "HTTP/1.1 101 Switching Protocols\r\n"
@@ -378,6 +380,7 @@ class WebSocketServer:
     async def _handle_message(self, msg: dict[str, Any], ws: Any) -> None:
         """Processa uma mensagem recebida de um cliente WebSocket."""
         msg_type = msg.get("type")
+
         print(f"[WS-SERVER] Recebido: {msg_type}", file=sys.stderr)
 
         if msg_type == "hello":
@@ -394,7 +397,9 @@ class WebSocketServer:
                 file=sys.stderr,
             )
             # Envia config de volta
-            await self.send_to_client(ws, {"type": "config", "wsUrl": f"ws://{self.host}:{self.port}"})
+            await self.send_to_client(
+                ws, {"type": "config", "wsUrl": f"ws://{self.host}:{self.port}"}
+            )
 
         elif msg_type == "event":
             event_type = msg.get("eventType")
@@ -417,7 +422,9 @@ class WebSocketServer:
             for callback in self._command_callbacks.values():
                 try:
                     result = await callback(tool, params)
-                    await self.send_to_client(ws, {"type": "response", "id": req_id, "result": result})
+                    await self.send_to_client(
+                        ws, {"type": "response", "id": req_id, "result": result}
+                    )
                 except Exception as e:
                     await self.send_to_client(
                         ws, {"type": "response", "id": req_id, "error": str(e)}
@@ -428,9 +435,8 @@ class WebSocketServer:
             # Reenviar para todos os outros clientes (extensão Chrome)
             sent = 0
             for client in list(self._clients):
-                if client is not ws:
-                    if await self.send_to_client(client, msg):
-                        sent += 1
+                if client is not ws and await self.send_to_client(client, msg):
+                    sent += 1
             if sent == 0:
                 print("[WS-SERVER] Nenhum cliente destino para o comando", file=sys.stderr)
 
@@ -448,7 +454,10 @@ class WebSocketServer:
             for client in list(self._clients):
                 if client is not ws:
                     ok = await self.send_to_client(client, msg)
-                    print(f"[WS-SERVER] Resposta {req_id} para cliente: {'OK' if ok else 'FALHA'}", file=sys.stderr)
+                    print(
+                        f"[WS-SERVER] Resposta {req_id} para cliente: {'OK' if ok else 'FALHA'}",
+                        file=sys.stderr,
+                    )
 
         elif msg_type == "pong":
             # Keep-alive response
@@ -504,7 +513,9 @@ class WebSocketServer:
         """Remove um callback de comando."""
         self._command_callbacks.pop(name, None)
 
-    async def execute_command(self, tool: str, params: dict[str, Any], timeout: float = 10.0) -> Any:
+    async def execute_command(
+        self, tool: str, params: dict[str, Any], timeout: float = 10.0
+    ) -> Any:
         """Envia um comando para a extensão e aguarda a resposta."""
         if not self._clients:
             raise RuntimeError("Nenhuma extensão conectada")
@@ -519,9 +530,7 @@ class WebSocketServer:
             await self.broadcast(message)
             return await asyncio.wait_for(fut, timeout=timeout)
         except TimeoutError as e:
-            raise TimeoutError(
-                f"Timeout ao aguardar resposta da extensão para {tool}"
-            ) from e
+            raise TimeoutError(f"Timeout ao aguardar resposta da extensão para {tool}") from e
         finally:
             self._pending_responses.pop(req_id, None)
 

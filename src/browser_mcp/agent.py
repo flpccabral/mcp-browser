@@ -165,7 +165,9 @@ class BrowserAgent:
             # Parse LLM response
             parsed = self._parse_response(response_text)
             if parsed is None:
-                error_msg = f"Could not parse LLM response at iteration {iteration}: {response_text[:200]}"
+                error_msg = (
+                    f"Could not parse LLM response at iteration {iteration}: {response_text[:200]}"
+                )
                 self.errors.append(error_msg)
                 self.consecutive_errors += 1
                 if self.consecutive_errors >= self.max_consecutive_errors:
@@ -173,7 +175,12 @@ class BrowserAgent:
                         success=False,
                         report=f"Task failed after {self.max_consecutive_errors} consecutive parse errors. Latest: {error_msg}",
                     )
-                messages.append({"role": "user", "content": f"Error: {error_msg}. Please respond with a JSON code block."})
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": f"Error: {error_msg}. Please respond with a JSON code block.",
+                    }
+                )
                 continue
 
             # Append assistant response to history
@@ -198,13 +205,15 @@ class BrowserAgent:
             result = await self._execute_tool(tool_name, params)
 
             # RECORD
-            self.action_history.append({
-                "iteration": iteration,
-                "tool": tool_name,
-                "params": params,
-                "thought": thought,
-                "result": result,
-            })
+            self.action_history.append(
+                {
+                    "iteration": iteration,
+                    "tool": tool_name,
+                    "params": params,
+                    "thought": thought,
+                    "result": result,
+                }
+            )
 
             if self.screenshot_on_action and tool_name != "browser_screenshot":
                 screenshot_path = await self._take_screenshot(f"iter_{iteration}_{tool_name}.png")
@@ -244,22 +253,47 @@ class BrowserAgent:
             self._flatten_accessibility_nodes(root, flat_nodes)
 
             interactive_roles = {
-                "button", "link", "textbox", "checkbox", "radio", "combobox",
-                "listbox", "menuitem", "menuitemcheckbox", "menuitemradio",
-                "option", "searchbox", "switch", "tab", "treeitem", "spinbutton",
-                "slider", "progressbar", "scrollbar", "heading", "navigation",
-                "search", "tabpanel", "tree", "grid", "cell", "rowheader", "columnheader",
+                "button",
+                "link",
+                "textbox",
+                "checkbox",
+                "radio",
+                "combobox",
+                "listbox",
+                "menuitem",
+                "menuitemcheckbox",
+                "menuitemradio",
+                "option",
+                "searchbox",
+                "switch",
+                "tab",
+                "treeitem",
+                "spinbutton",
+                "slider",
+                "progressbar",
+                "scrollbar",
+                "heading",
+                "navigation",
+                "search",
+                "tabpanel",
+                "tree",
+                "grid",
+                "cell",
+                "rowheader",
+                "columnheader",
             }
             interactive_elements = []
             for node in flat_nodes:
                 role = (node.get("role") or "").lower()
                 name = node.get("name") or ""
                 if role in interactive_roles or (role and name):
-                    interactive_elements.append({
-                        "ref": node.get("ref", ""),
-                        "role": role,
-                        "name": name[:80],
-                    })
+                    interactive_elements.append(
+                        {
+                            "ref": node.get("ref", ""),
+                            "role": role,
+                            "name": name[:80],
+                        }
+                    )
 
             total_elements = len(interactive_elements)
             if total_elements > 30:
@@ -267,8 +301,7 @@ class BrowserAgent:
             else:
                 shown_elements = interactive_elements
             elements_summary = "\n".join(
-                f"- {el['ref']} | role={el['role']} | name={el['name']}"
-                for el in shown_elements
+                f"- {el['ref']} | role={el['role']} | name={el['name']}" for el in shown_elements
             )
             if total_elements > 30:
                 elements_summary += f"\n\n... ({total_elements - 30} more elements)"
@@ -414,7 +447,9 @@ class BrowserAgent:
                 if filename:
                     path = os.path.join(self.output_dir, filename)
                 else:
-                    path = os.path.join(self.output_dir, f"screenshot_{int(time.time() * 1000)}.png")
+                    path = os.path.join(
+                        self.output_dir, f"screenshot_{int(time.time() * 1000)}.png"
+                    )
                 result = await bm.screenshot(path, full_page)
                 self.screenshots.append(result)
                 return f"Screenshot saved to {result}"
@@ -491,7 +526,9 @@ class BrowserAgent:
             self.consecutive_errors += 1
             # Try fallback for click/type/hover if selector looks like CSS and fails
             try:
-                if tool_name in ("browser_click", "browser_type", "browser_hover") and params.get("selector", "").startswith("@e"):
+                if tool_name in ("browser_click", "browser_type", "browser_hover") and params.get(
+                    "selector", ""
+                ).startswith("@e"):
                     pass  # Already tried ref, don't double-fallback
                 elif tool_name == "browser_click":
                     selector = params.get("selector", "")
@@ -500,7 +537,9 @@ class BrowserAgent:
                         assert bm._page is not None
                         locator = bm._page.get_by_text(selector).first
                         await locator.click(timeout=30000)
-                        self.scratchpad += f"\n[Fallback] browser_click fell back to get_by_text: '{selector}'"
+                        self.scratchpad += (
+                            f"\n[Fallback] browser_click fell back to get_by_text: '{selector}'"
+                        )
                         return f"Clicked via text fallback: {selector}"
                 elif tool_name == "browser_type":
                     selector = params.get("selector", "")
@@ -514,7 +553,9 @@ class BrowserAgent:
                             await locator.fill(text, timeout=30000)
                         else:
                             await locator.type(text, timeout=30000)
-                        self.scratchpad += f"\n[Fallback] browser_type fell back to get_by_text: '{selector}'"
+                        self.scratchpad += (
+                            f"\n[Fallback] browser_type fell back to get_by_text: '{selector}'"
+                        )
                         return f"Typed via text fallback: {selector}"
                 elif tool_name == "browser_hover":
                     selector = params.get("selector", "")
@@ -523,7 +564,9 @@ class BrowserAgent:
                         assert bm._page is not None
                         locator = bm._page.get_by_text(selector).first
                         await locator.hover(timeout=30000)
-                        self.scratchpad += f"\n[Fallback] browser_hover fell back to get_by_text: '{selector}'"
+                        self.scratchpad += (
+                            f"\n[Fallback] browser_hover fell back to get_by_text: '{selector}'"
+                        )
                         return f"Hovered via text fallback: {selector}"
             except Exception as fallback_exc:
                 error_msg += f" | Fallback also failed: {fallback_exc}"
@@ -569,7 +612,7 @@ class BrowserAgent:
         # Keep first user message (task prompt) and the most recent ones
         if len(non_system) > max_messages - len(system_msgs):
             kept_user = [non_system[0]] if non_system else []
-            recent = non_system[-(max_messages - len(system_msgs) - len(kept_user)):]
+            recent = non_system[-(max_messages - len(system_msgs) - len(kept_user)) :]
             # Avoid duplicating if first is already in recent
             if kept_user and kept_user[0] in recent:
                 kept_user = []

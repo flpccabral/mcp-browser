@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Login — Fixture</title>
+</head>
+<body>
+  <h1>Portal Interno</h1>
+  <form id="login-form">
+    <label for="usuario">Usuário</label>
+    <input type="text" id="usuario" name="usuario" aria-label="Usuário">
+    <label for="senha">Senha</label>
+    <input type="password" id="senha" name="senha" aria-label="Senha">
+    <button type="submit" id="entrar">Entrar</button>
+  </form>
+  <div id="resultado" role="status"></div>
+  <script>
+    document.getElementById('login-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var u = document.getElementById('usuario').value;
+      var s = document.getElementById('senha').value;
+      var out = document.getElementById('resultado');
+      if (u === 'admin' && s === 'segredo123') {
+        out.textContent = 'LOGIN_OK bem-vindo admin';
+        document.title = 'Portal Interno — logado';
+      } else {
+        out.textContent = 'LOGIN_FALHOU credenciais inválidas';
+      }
+    });
+  </script>
+</body>
+</html>

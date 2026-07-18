@@ -35,6 +35,7 @@ class ToolRegistry:
 
         Registra a função assíncora como ferramenta MCP com seu JSON Schema.
         """
+
         def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             tool_name = name or func.__name__
             tool_desc = description or (func.__doc__ or "").strip()
@@ -44,6 +45,7 @@ class ToolRegistry:
                 "description": tool_desc,
             }
             return func
+
         return decorator
 
     def get_tools(self) -> list[types.Tool]:
@@ -75,9 +77,7 @@ def _format_error(error: Exception) -> str:
     suggestion = "Verifique os parâmetros e tente novamente."
     if "Timeout" in error_type:
         suggestion = "Aumente o timeout ou verifique se o elemento está presente."
-    elif any(
-        k in error_type for k in ("Locator", "Element", "Assertion", "Page")
-    ):
+    elif any(k in error_type for k in ("Locator", "Element", "Assertion", "Page")):
         suggestion = "Verifique se o seletor está correto e o elemento está visível."
     elif "NotFound" in error_type or "FileNotFound" in error_type:
         suggestion = "Verifique se o caminho ou arquivo existe."
@@ -140,7 +140,7 @@ async def browser_navigate(url: str) -> list[types.TextContent]:
     },
 )
 async def browser_connect_to_existing(
-    cdp_url: str = "http://localhost:9222"
+    cdp_url: str = "http://localhost:9222",
 ) -> list[types.TextContent]:
     """Conecta ao Chrome existente via CDP."""
     start = time.time()
@@ -172,7 +172,7 @@ async def browser_connect_to_existing(
     },
 )
 async def browser_connect_to_extension(
-    ws_url: str = "ws://localhost:8765"
+    ws_url: str = "ws://localhost:8765",
 ) -> list[types.TextContent]:
     """Conecta ao Chrome real do usuário via extensão."""
     start = time.time()
@@ -368,8 +368,7 @@ async def browser_click(selector: str, by: str = "css") -> list[types.TextConten
             "selector": {
                 "type": "string",
                 "description": (
-                    "Seletor CSS do campo de input, ou @e ref (ex: @e3) "
-                    "do accessibility tree."
+                    "Seletor CSS do campo de input, ou @e ref (ex: @e3) do accessibility tree."
                 ),
             },
             "text": {
@@ -428,9 +427,7 @@ async def browser_type(
         "required": ["selector", "value"],
     },
 )
-async def browser_select_option(
-    selector: str, value: str
-) -> list[types.TextContent]:
+async def browser_select_option(selector: str, value: str) -> list[types.TextContent]:
     """Seleciona uma opção."""
     start = time.time()
     try:
@@ -544,9 +541,7 @@ async def browser_accessibility_tree() -> list[types.TextContent]:
         "required": ["key"],
     },
 )
-async def browser_press_key(
-    key: str, selector: str | None = None
-) -> list[types.TextContent]:
+async def browser_press_key(key: str, selector: str | None = None) -> list[types.TextContent]:
     """Pressiona uma tecla."""
     start = time.time()
     try:
@@ -579,9 +574,7 @@ async def browser_press_key(
         "required": ["selector", "file_path"],
     },
 )
-async def browser_upload_file(
-    selector: str, file_path: str
-) -> list[types.TextContent]:
+async def browser_upload_file(selector: str, file_path: str) -> list[types.TextContent]:
     """Faz upload de arquivo."""
     start = time.time()
     try:
@@ -927,9 +920,7 @@ async def browser_export_har(path: str) -> list[types.TextContent]:
         "required": ["action"],
     },
 )
-async def browser_manage_session(
-    action: str, **kwargs: Any
-) -> list[types.TextContent]:
+async def browser_manage_session(action: str, **kwargs: Any) -> list[types.TextContent]:
     """Gerencia sessão."""
     start = time.time()
     try:
@@ -1092,12 +1083,12 @@ async def browser_agent_task(
 
         summary = f"""# Agent Task Report
 
-**Status**: {'✅ Success' if result.get('success') else '❌ Incomplete'}
-**Actions Taken**: {result.get('action_count', 0)}
-**Screenshots**: {len(result.get('screenshots', []))}
-**Errors**: {len(result.get('errors', []))}
+**Status**: {"✅ Success" if result.get("success") else "❌ Incomplete"}
+**Actions Taken**: {result.get("action_count", 0)}
+**Screenshots**: {len(result.get("screenshots", []))}
+**Errors**: {len(result.get("errors", []))}
 
-{result.get('report', 'No report generated.')}
+{result.get("report", "No report generated.")}
 """
         return [
             types.TextContent(
@@ -1116,7 +1107,7 @@ async def browser_agent_task(
 @app.tool(
     name="browser_extension_get_network_log",
     description="Obtém o log de rede capturado pela extensão Chrome (XHR/fetch). "
-                "Requer modo extension ativo (browser_connect_to_extension).",
+    "Requer modo extension ativo (browser_connect_to_extension).",
     schema={
         "type": "object",
         "properties": {
@@ -1152,7 +1143,7 @@ async def browser_extension_get_network_log(
 @app.tool(
     name="browser_extension_get_dom_snapshot",
     description="Obtém snapshot do DOM atual via extensão Chrome. "
-                "Requer modo extension ativo (browser_connect_to_extension).",
+    "Requer modo extension ativo (browser_connect_to_extension).",
     schema={"type": "object", "properties": {}, "required": []},
 )
 async def browser_extension_get_dom_snapshot() -> list[types.TextContent]:
@@ -1173,9 +1164,19 @@ async def browser_extension_get_dom_snapshot() -> list[types.TextContent]:
     schema={
         "type": "object",
         "properties": {
-            "level": {"type": "string", "description": "Filtrar por nivel: 'error', 'warn', ou 'log'"},
-            "filter_text": {"type": "string", "description": "Filtrar por substring na mensagem (ex: 'GraphQL', 'Cannot query')"},
-            "limit": {"type": "integer", "description": "Numero maximo de entradas (mais recentes)", "default": 50},
+            "level": {
+                "type": "string",
+                "description": "Filtrar por nivel: 'error', 'warn', ou 'log'",
+            },
+            "filter_text": {
+                "type": "string",
+                "description": "Filtrar por substring na mensagem (ex: 'GraphQL', 'Cannot query')",
+            },
+            "limit": {
+                "type": "integer",
+                "description": "Numero maximo de entradas (mais recentes)",
+                "default": 50,
+            },
         },
     },
 )
@@ -1188,7 +1189,9 @@ async def browser_get_console_errors(
     try:
         result = await browser_manager.extension_get_console_errors(level, filter_text, limit)
         _log_call("browser_get_console_errors", start)
-        return [types.TextContent(type="text", text=json.dumps(result, indent=2, ensure_ascii=False))]
+        return [
+            types.TextContent(type="text", text=json.dumps(result, indent=2, ensure_ascii=False))
+        ]
     except Exception as e:
         _log_call("browser_get_console_errors", start)
         return [types.TextContent(type="text", text=_format_error(e))]
@@ -1201,7 +1204,11 @@ async def browser_get_console_errors(
         "type": "object",
         "properties": {
             "url": {"type": "string", "description": "URL para abrir na nova aba"},
-            "group_title": {"type": "string", "description": "Titulo do grupo de abas (ex: 'Sessao MCP')", "default": "MCP Browser"},
+            "group_title": {
+                "type": "string",
+                "description": "Titulo do grupo de abas (ex: 'Sessao MCP')",
+                "default": "MCP Browser",
+            },
         },
         "required": ["url"],
     },
@@ -1220,6 +1227,7 @@ async def browser_new_tab(url: str, group_title: str = "") -> list[types.TextCon
 # ────────────────────────────────────────────────
 # Indicadores Visuais
 # ────────────────────────────────────────────────
+
 
 @app.tool(
     name="browser_inject_indicator",

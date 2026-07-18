@@ -33,6 +33,14 @@ Thumbs.db
 # Test artifacts
 .htmlshot/
 .screenshots/
+agent_output/
+agent_output_*/
+
+# Chrome extension signing key and build artifacts
+extension.pem
+*.pem
+extension.crx
+*.crx
 
 # MyPy
 .mypy_cache/

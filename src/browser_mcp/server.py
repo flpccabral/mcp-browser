@@ -22,9 +22,7 @@ async def handle_list_tools() -> list[types.Tool]:
 
 
 @server.call_tool()
-async def handle_call_tool(
-    name: str, arguments: dict
-) -> list[types.TextContent]:
+async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent]:
     """Handler MCP: executa uma ferramenta pelo nome."""
     try:
         return await app.call_tool(name, arguments)
@@ -60,9 +58,7 @@ async def main():
         with contextlib.suppress(NotImplementedError, ValueError):
             loop.add_signal_handler(
                 sig,
-                lambda s=sig: asyncio.create_task(
-                    _shutdown(signal.Signals(s).name)
-                ),
+                lambda s=sig: asyncio.create_task(_shutdown(signal.Signals(s).name)),
             )
 
     print("[SERVER] Iniciando browser-mcp-server...", file=sys.stderr)
@@ -70,7 +66,9 @@ async def main():
         await browser_manager.start()
         await llm_client.initialize()
         await websocket_server.start()
-        print("[SERVER] BrowserManager, LLMClient e WebSocketServer inicializados.", file=sys.stderr)
+        print(
+            "[SERVER] BrowserManager, LLMClient e WebSocketServer inicializados.", file=sys.stderr
+        )
     except Exception as e:
         print(f"[SERVER] Aviso: Falha na inicialização opcional: {e}", file=sys.stderr)
 

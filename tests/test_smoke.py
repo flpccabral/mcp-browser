@@ -10,6 +10,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+import contextlib
+
 import pytest
 
 
@@ -20,10 +22,8 @@ async def browser():
 
     await browser_manager.start()
     yield browser_manager
-    try:
+    with contextlib.suppress(Exception):
         await browser_manager.stop()
-    except Exception:
-        pass
 
 
 def _evaluate(page, expression: str):
@@ -88,11 +88,15 @@ async def test_visual_indicator(browser):
     """Injetar e remover overlay visual."""
     await browser.navigate("https://httpbin.org")
     await browser.inject_indicator()
-    has = await _evaluate(browser._page, "document.getElementById('__mcp_browser_overlay') !== null")
+    has = await _evaluate(
+        browser._page, "document.getElementById('__mcp_browser_overlay') !== null"
+    )
     assert has is True
 
     await browser.remove_indicator()
-    has = await _evaluate(browser._page, "document.getElementById('__mcp_browser_overlay') !== null")
+    has = await _evaluate(
+        browser._page, "document.getElementById('__mcp_browser_overlay') !== null"
+    )
     assert has is False
 
 

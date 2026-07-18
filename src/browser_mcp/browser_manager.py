@@ -38,7 +38,12 @@ _VIEWPORT_W = int(os.getenv("BROWSER_VIEWPORT_WIDTH", "1280"))
 _VIEWPORT_H = int(os.getenv("BROWSER_VIEWPORT_HEIGHT", "720"))
 _TIMEOUT = int(os.getenv("BROWSER_TIMEOUT", "30000"))
 _EXTENSION_WS_URL = os.getenv("EXTENSION_WS_URL", "ws://localhost:8765")
-_ENABLE_VISUAL_INDICATOR = os.getenv("ENABLE_VISUAL_INDICATOR", "true").lower() in ("1", "true", "yes", "on")
+_ENABLE_VISUAL_INDICATOR = os.getenv("ENABLE_VISUAL_INDICATOR", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 _STEALTH_MODE = os.getenv("STEALTH_MODE", "true").lower() in ("1", "true", "yes", "on")
 
 # Pool de User Agents reais (Chrome macOS)
@@ -100,11 +105,11 @@ class BrowserManager:
     _mode: str
     _ref_counter: int
     _ref_map: dict[str, dict[str, Any]]
-    _playwright: Optional[Playwright]
-    _browser: Optional[Browser]
-    _context: Optional[BrowserContext]
-    _page: Optional[Page]
-    _network_interceptor: Optional[NetworkInterceptor]
+    _playwright: Playwright | None
+    _browser: Browser | None
+    _context: BrowserContext | None
+    _page: Page | None
+    _network_interceptor: NetworkInterceptor | None
 
     def __new__(cls) -> "BrowserManager":
         if cls._instance is None:
@@ -152,13 +157,14 @@ class BrowserManager:
             }
             if _STEALTH_MODE:
                 import random
+
                 context_opts["user_agent"] = random.choice(_USER_AGENTS)
                 context_opts["bypass_csp"] = True
             self._context = await self._browser.new_context(**context_opts)
-            
+
             # Criar página primeiro
             self._page = await self._context.new_page()
-            
+
             # Stealth via CDP (executa antes de qualquer script da página nas próximas navegações)
             if _STEALTH_MODE:
                 cdp = await self._context.new_cdp_session(self._page)
@@ -326,11 +332,13 @@ class BrowserManager:
                     ref = f"@e{self._ref_counter}"
                     role = el.get("tag", "")
                     name = el.get("text", "") or el.get("name", "")
-                    enriched.append({
-                        "ref": ref,
-                        "role": role,
-                        "name": name,
-                    })
+                    enriched.append(
+                        {
+                            "ref": ref,
+                            "role": role,
+                            "name": name,
+                        }
+                    )
                     self._ref_map[ref] = {
                         "role": role,
                         "name": name,
@@ -354,15 +362,25 @@ class BrowserManager:
             for node in nodes:
                 self._ref_counter += 1
                 ref = f"@e{self._ref_counter}"
-                role = node.get("role", {}).get("value", "") if isinstance(node.get("role"), dict) else node.get("role", "")
-                name = node.get("name", {}).get("value", "") if isinstance(node.get("name"), dict) else node.get("name", "")
-                enriched.append({
-                    "ref": ref,
-                    "role": role,
-                    "name": name,
-                    "nodeId": node.get("nodeId"),
-                    "backendDOMNodeId": node.get("backendDOMNodeId"),
-                })
+                role = (
+                    node.get("role", {}).get("value", "")
+                    if isinstance(node.get("role"), dict)
+                    else node.get("role", "")
+                )
+                name = (
+                    node.get("name", {}).get("value", "")
+                    if isinstance(node.get("name"), dict)
+                    else node.get("name", "")
+                )
+                enriched.append(
+                    {
+                        "ref": ref,
+                        "role": role,
+                        "name": name,
+                        "nodeId": node.get("nodeId"),
+                        "backendDOMNodeId": node.get("backendDOMNodeId"),
+                    }
+                )
                 self._ref_map[ref] = {
                     "role": role,
                     "name": name,
@@ -502,7 +520,9 @@ class BrowserManager:
                         "headers": [],
                         "cookies": [],
                         "content": {
-                            "size": len(data.get("responseBody", "")) if data.get("responseBody") else 0,
+                            "size": len(data.get("responseBody", ""))
+                            if data.get("responseBody")
+                            else 0,
                             "mimeType": "application/octet-stream",
                             "text": data.get("responseBody", ""),
                         },
@@ -574,7 +594,9 @@ class BrowserManager:
 
     async def navigate(self, url: str, new_tab: bool = False, group_title: str = "") -> str:
         if self._in_extension_mode():
-            return await self._extension_dispatch("navigate", {"url": url, "newTab": new_tab, "groupTitle": group_title})
+            return await self._extension_dispatch(
+                "navigate", {"url": url, "newTab": new_tab, "groupTitle": group_title}
+            )
         self._ensure_started()
         assert self._page is not None
         assert self._context is not None
@@ -619,11 +641,14 @@ class BrowserManager:
 
     async def scroll(self, direction: str, amount: int = 300, selector: str | None = None) -> str:
         if self._in_extension_mode():
-            return await self._extension_dispatch("scroll", {
-                "direction": direction,
-                "amount": amount,
-                "selector": selector,
-            })
+            return await self._extension_dispatch(
+                "scroll",
+                {
+                    "direction": direction,
+                    "amount": amount,
+                    "selector": selector,
+                },
+            )
         if not self._page:
             raise RuntimeError("Nenhuma página ativa")
 
@@ -654,7 +679,9 @@ class BrowserManager:
         )
         if result.get("error"):
             raise RuntimeError(result["error"])
-        return json.dumps({"direction": direction, "amount": amount, "selector": selector, **result})
+        return json.dumps(
+            {"direction": direction, "amount": amount, "selector": selector, **result}
+        )
 
     async def click(self, selector: str, by: str = "css") -> str:
         """Clica em um elemento com fallback inteligente.
@@ -711,7 +738,7 @@ class BrowserManager:
             await locator.click(timeout=_TIMEOUT)
             await self._page.wait_for_load_state("networkidle", timeout=5000)
             return f"Elemento clicado: {selector} (by={by})"
-        except Exception as e1:
+        except Exception:
             pass  # Tenta próximo fallback
 
         # ── Estratégia 2: Force click (ignora actionability checks) ──
@@ -719,7 +746,7 @@ class BrowserManager:
             await locator.click(timeout=_TIMEOUT, force=True)
             await self._page.wait_for_load_state("networkidle", timeout=5000)
             return f"Elemento clicado (force): {selector} (by={by})"
-        except Exception as e2:
+        except Exception:
             pass  # Tenta próximo fallback
 
         # ── Estratégia 3: Link navigation via href ──
@@ -762,7 +789,7 @@ class BrowserManager:
             if result == "dispatched":
                 await self._page.wait_for_load_state("networkidle", timeout=5000)
                 return f"Elemento clicado (events): {selector} (by={by})"
-        except Exception as e4:
+        except Exception:
             pass
 
         # Último recurso: tenta um click normal de novo (pode ter sido
@@ -772,7 +799,9 @@ class BrowserManager:
 
     async def type_text(self, selector: str, text: str, clear: bool = True, by: str = "css") -> str:
         if self._in_extension_mode():
-            return await self._extension_dispatch("type", {"selector": selector, "text": text, "clear": clear, "by": by})
+            return await self._extension_dispatch(
+                "type", {"selector": selector, "text": text, "clear": clear, "by": by}
+            )
         self._ensure_started()
         assert self._page is not None
         if by == "ref" or selector.startswith("@e"):
@@ -793,7 +822,9 @@ class BrowserManager:
 
     async def select_option(self, selector: str, value: str) -> str:
         if self._in_extension_mode():
-            return await self._extension_dispatch("select_option", {"selector": selector, "value": value})
+            return await self._extension_dispatch(
+                "select_option", {"selector": selector, "value": value}
+            )
         self._ensure_started()
         assert self._page is not None
         await self._page.locator(selector).select_option(value, timeout=_TIMEOUT)
@@ -837,7 +868,9 @@ class BrowserManager:
 
     async def get_content(self, selector: str | None = None, as_html: bool = False) -> str:
         if self._in_extension_mode():
-            return await self._extension_dispatch("get_content", {"selector": selector, "as_html": as_html})
+            return await self._extension_dispatch(
+                "get_content", {"selector": selector, "as_html": as_html}
+            )
         self._ensure_started()
         assert self._page is not None
         if selector:
@@ -859,7 +892,9 @@ class BrowserManager:
 
     async def get_attributes(self, selector: str, attribute: str | None = None) -> str:
         if self._in_extension_mode():
-            return await self._extension_dispatch("get_attributes", {"selector": selector, "attribute": attribute})
+            return await self._extension_dispatch(
+                "get_attributes", {"selector": selector, "attribute": attribute}
+            )
         self._ensure_started()
         assert self._page is not None
         locator = self._page.locator(selector)
@@ -883,7 +918,9 @@ class BrowserManager:
 
     async def screenshot(self, path: str | None = None, full_page: bool = False) -> str:
         if self._in_extension_mode():
-            result = await self._extension_dispatch("screenshot", {"path": path, "full_page": full_page})
+            result = await self._extension_dispatch(
+                "screenshot", {"path": path, "full_page": full_page}
+            )
             if path:
                 return result
             return result
@@ -943,7 +980,9 @@ class BrowserManager:
     async def manage_session(self, action: str, **kwargs: Any) -> str:
         if self._in_extension_mode():
             if action in ("start_recording", "stop_recording", "list_tabs"):
-                return await self._extension_dispatch("manage_session", {"action": action, **kwargs})
+                return await self._extension_dispatch(
+                    "manage_session", {"action": action, **kwargs}
+                )
             raise NotImplementedError(f"manage_session '{action}' não suportado no modo extension")
         self._ensure_started()
         assert self._page is not None
@@ -1005,14 +1044,19 @@ class BrowserManager:
             raise ValueError(f"Ação desconhecida: {action}")
             raise ValueError(f"Ação desconhecida: {action}")
 
-    async def wait(self, condition: str, selector: str | None = None, timeout: int | None = None) -> str:
+    async def wait(
+        self, condition: str, selector: str | None = None, timeout: int | None = None
+    ) -> str:
         if self._in_extension_mode():
             t = timeout or _TIMEOUT
-            return await self._extension_dispatch("wait", {
-                "condition": condition,
-                "selector": selector,
-                "timeout": t,
-            })
+            return await self._extension_dispatch(
+                "wait",
+                {
+                    "condition": condition,
+                    "selector": selector,
+                    "timeout": t,
+                },
+            )
         self._ensure_started()
         assert self._page is not None
         t = timeout or _TIMEOUT
@@ -1067,8 +1111,10 @@ class BrowserManager:
                 return result
         self._ensure_started()
         assert self._page is not None
-        text = cast(str, await self._page.evaluate(
-            """() => {
+        text = cast(
+            str,
+            await self._page.evaluate(
+                """() => {
                 const walker = document.createTreeWalker(
                     document.body,
                     NodeFilter.SHOW_TEXT,
@@ -1084,7 +1130,8 @@ class BrowserManager:
                 }
                 return text.trim().replace(/\\s+/g, " ");
             }"""
-        ))
+            ),
+        )
         return text[:5000]
 
     async def get_interactive_elements(self) -> list[dict[str, Any]]:
@@ -1096,8 +1143,10 @@ class BrowserManager:
                 return []
         self._ensure_started()
         assert self._page is not None
-        elements = cast(list[dict[str, Any]], await self._page.evaluate(
-            """() => {
+        elements = cast(
+            list[dict[str, Any]],
+            await self._page.evaluate(
+                """() => {
                 const selectors = [
                     "a", "button", "input", "select", "textarea",
                     "[onclick]", "[role=\\"button\\"]"
@@ -1128,20 +1177,27 @@ class BrowserManager:
                 }
                 return result;
             }"""
-        ))
+            ),
+        )
         return elements
 
-    async def extension_get_network_log(self, filter_url: str | None = None, filter_method: str | None = None) -> str:
+    async def extension_get_network_log(
+        self, filter_url: str | None = None, filter_method: str | None = None
+    ) -> str:
         """Obtém log de rede da extensão (modo extension)."""
         if not self._in_extension_mode():
-            raise RuntimeError("Disponível apenas no modo extension. Use browser_connect_to_extension primeiro.")
+            raise RuntimeError(
+                "Disponível apenas no modo extension. Use browser_connect_to_extension primeiro."
+            )
         logs = await extension_bridge.get_network_log(filter_url, filter_method)
         return json.dumps(logs, ensure_ascii=False, indent=2, default=str)
 
     async def extension_get_dom_snapshot(self) -> str:
         """Obtém snapshot do DOM da extensão (modo extension)."""
         if not self._in_extension_mode():
-            raise RuntimeError("Disponível apenas no modo extension. Use browser_connect_to_extension primeiro.")
+            raise RuntimeError(
+                "Disponível apenas no modo extension. Use browser_connect_to_extension primeiro."
+            )
         snapshot = await extension_bridge.get_dom_snapshot()
         return str(snapshot)
 
@@ -1153,7 +1209,9 @@ class BrowserManager:
     ) -> str:
         """Retorna erros/warnings de console capturados pela extensão."""
         if not self._in_extension_mode():
-            raise RuntimeError("Disponível apenas no modo extension. Use browser_connect_to_extension primeiro.")
+            raise RuntimeError(
+                "Disponível apenas no modo extension. Use browser_connect_to_extension primeiro."
+            )
         result = await extension_bridge.get_console_errors(level, filter_text, limit)
         return json.dumps(result, indent=2, ensure_ascii=False)
 

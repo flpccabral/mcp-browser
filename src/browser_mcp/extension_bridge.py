@@ -38,6 +38,7 @@ class ExtensionBridge:
                 self._ws_server = ws_server
             else:
                 from browser_mcp.websocket_server import websocket_server as _ws_singleton
+
                 self._ws_server = _ws_singleton
 
             self._network_log: list[dict[str, Any]] = []
@@ -76,25 +77,27 @@ class ExtensionBridge:
         if event_type == "xhr":
             self._network_log.append(data)
             if len(self._network_log) > self._max_log_size:
-                self._network_log = self._network_log[-self._max_log_size:]
+                self._network_log = self._network_log[-self._max_log_size :]
         elif event_type == "dom":
             self._dom_events.append(data)
             if len(self._dom_events) > self._max_log_size:
-                self._dom_events = self._dom_events[-self._max_log_size:]
+                self._dom_events = self._dom_events[-self._max_log_size :]
         elif event_type == "navigation":
             self._navigation_events.append(data)
             if len(self._navigation_events) > self._max_log_size:
-                self._navigation_events = self._navigation_events[-self._max_log_size:]
+                self._navigation_events = self._navigation_events[-self._max_log_size :]
         elif event_type == "console":
             self._console_errors.append(data)
             if len(self._console_errors) > self._max_log_size:
-                self._console_errors = self._console_errors[-self._max_log_size:]
+                self._console_errors = self._console_errors[-self._max_log_size :]
 
     # ------------------------------------------------------------------
     # Comandos — enviam para a extensão e aguardam resposta
     # ------------------------------------------------------------------
 
-    async def execute_command(self, tool: str, params: dict[str, Any], timeout: float = 15.0) -> Any:
+    async def execute_command(
+        self, tool: str, params: dict[str, Any], timeout: float = 15.0
+    ) -> Any:
         """Envia um comando para a extensão e aguarda a resposta.
 
         Args:
@@ -314,13 +317,17 @@ class ExtensionBridge:
         """Limpa os eventos de DOM acumulados."""
         count = len(self._dom_events)
         self._dom_events.clear()
-        print(f"[EXTENSION-BRIDGE] Eventos DOM limpos. {count} entradas removidas.", file=sys.stderr)
+        print(
+            f"[EXTENSION-BRIDGE] Eventos DOM limpos. {count} entradas removidas.", file=sys.stderr
+        )
 
     def clear_navigation_events(self) -> None:
         """Limpa os eventos de navegação acumulados."""
         count = len(self._navigation_events)
         self._navigation_events.clear()
-        print(f"[EXTENSION-BRIDGE] Eventos de navegação limpos. {count} removidos.", file=sys.stderr)
+        print(
+            f"[EXTENSION-BRIDGE] Eventos de navegação limpos. {count} removidos.", file=sys.stderr
+        )
 
     def clear_console_log(self) -> None:
         """Limpa os erros/warnings de console acumulados."""
@@ -385,8 +392,7 @@ class ExtensionBridge:
                     "url": e.get("url", ""),
                     "httpVersion": "HTTP/1.1",
                     "headers": [
-                        {"name": k, "value": v}
-                        for k, v in e.get("requestHeaders", {}).items()
+                        {"name": k, "value": v} for k, v in e.get("requestHeaders", {}).items()
                     ],
                     "queryString": [],
                     "cookies": [],
@@ -403,8 +409,7 @@ class ExtensionBridge:
                     "statusText": e.get("statusText", ""),
                     "httpVersion": "HTTP/1.1",
                     "headers": [
-                        {"name": k, "value": v}
-                        for k, v in e.get("responseHeaders", {}).items()
+                        {"name": k, "value": v} for k, v in e.get("responseHeaders", {}).items()
                     ],
                     "cookies": [],
                     "content": {
