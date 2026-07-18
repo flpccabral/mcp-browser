@@ -1,11 +1,11 @@
 # MCP Browser Bridge
 
 > Ponte entre Model Context Protocol (MCP) e automação de navegador.
-> 37 ferramentas. 3 modos de operação. Chrome real ou headless.
+> 39 ferramentas. 3 modos de operação. Chrome real ou headless.
 
 ## ✨ Funcionalidades
 
-- **37 ferramentas MCP** registradas em `src/browser_mcp/tools.py` via `@app.tool(...)` e expostas pelo servidor MCP em `src/browser_mcp/server.py:18` e `src/browser_mcp/server.py:24`.
+- **39 ferramentas MCP** registradas em `src/browser_mcp/tools.py` via `@app.tool(...)` e expostas pelo servidor MCP em `src/browser_mcp/server.py:18` e `src/browser_mcp/server.py:24`.
 - **3 modos de operação**: Playwright/headless por padrão (`src/browser_mcp/browser_manager.py:126`), CDP para Chrome existente (`src/browser_mcp/browser_manager.py:211`) e Chrome Extension via WebSocket (`src/browser_mcp/browser_manager.py:252`).
 - **Network monitoring** com captura de request/response, filtros e exportação HAR no Playwright (`src/browser_mcp/network.py:11`, `src/browser_mcp/network.py:178`) e no modo extensão (`src/browser_mcp/extension_bridge.py:196`, `src/browser_mcp/extension_bridge.py:360`).
 - **Indicadores visuais** por injeção JavaScript em 5 componentes/fases documentáveis no código: overlay, highlight, status, ripple e segurança por cor (`src/browser_mcp/visual_indicator.py:8`, `src/browser_mcp/visual_indicator.py:69`, `src/browser_mcp/visual_indicator.py:86`, `src/browser_mcp/visual_indicator.py:113`, `src/browser_mcp/browser_manager.py:1097`).
@@ -113,7 +113,7 @@ O modo extensão usa a sessão real do Chrome via `ExtensionBridge`, fecha Playw
 
 ## 🛠️ Ferramentas
 
-Os nomes abaixo são os nomes reais registrados em `src/browser_mcp/tools.py`. A contagem verificada é 37.
+Os nomes abaixo são os nomes reais registrados em `src/browser_mcp/tools.py`. A contagem verificada é 39.
 
 | Categoria | Ferramenta | Implementação |
 |---|---|---|
@@ -121,44 +121,46 @@ Os nomes abaixo são os nomes reais registrados em `src/browser_mcp/tools.py`. A
 | Navegação | `browser_go_back` | `src/browser_mcp/tools.py:211` |
 | Navegação | `browser_go_forward` | `src/browser_mcp/tools.py:231` |
 | Navegação | `browser_reload` | `src/browser_mcp/tools.py:251` |
-| Navegação | `browser_new_tab` | `src/browser_mcp/tools.py:1156` |
-| Interação | `browser_click` | `src/browser_mcp/tools.py:271` |
-| Interação | `browser_type` | `src/browser_mcp/tools.py:317` |
-| Interação | `browser_select_option` | `src/browser_mcp/tools.py:372` |
-| Interação | `browser_hover` | `src/browser_mcp/tools.py:407` |
-| Interação | `browser_press_key` | `src/browser_mcp/tools.py:488` |
-| Interação | `browser_upload_file` | `src/browser_mcp/tools.py:523` |
-| Leitura | `browser_get_content` | `src/browser_mcp/tools.py:558` |
-| Leitura | `browser_get_url` | `src/browser_mcp/tools.py:948` |
-| Leitura | `browser_get_title` | `src/browser_mcp/tools.py:969` |
-| Leitura | `browser_get_attributes` | `src/browser_mcp/tools.py:629` |
-| Leitura | `browser_extension_get_dom_snapshot` | `src/browser_mcp/tools.py:1111` |
-| Screenshot & Visual | `browser_screenshot` | `src/browser_mcp/tools.py:664` |
-| Screenshot & Visual | `browser_inject_indicator` | `src/browser_mcp/tools.py:1183` |
-| Screenshot & Visual | `browser_remove_indicator` | `src/browser_mcp/tools.py:1198` |
-| Screenshot & Visual | `browser_highlight_element` | `src/browser_mcp/tools.py:1213` |
-| Screenshot & Visual | `browser_set_security_level` | `src/browser_mcp/tools.py:1228` |
-| Network | `browser_network_start` | `src/browser_mcp/tools.py:700` |
-| Network | `browser_network_stop` | `src/browser_mcp/tools.py:721` |
-| Network | `browser_network_list` | `src/browser_mcp/tools.py:741` |
-| Network | `browser_network_clear` | `src/browser_mcp/tools.py:781` |
-| Network | `browser_get_network_log` | `src/browser_mcp/tools.py:801` |
-| Network | `browser_export_har` | `src/browser_mcp/tools.py:836` |
-| Network | `browser_extension_get_network_log` | `src/browser_mcp/tools.py:1075` |
-| Console | `browser_get_console_errors` | `src/browser_mcp/tools.py:1129` |
-| Sessão | `browser_manage_session` | `src/browser_mcp/tools.py:865` |
+| Navegação | `browser_new_tab` | `src/browser_mcp/tools.py:1200` |
+| Interação | `browser_click` | `src/browser_mcp/tools.py:312` |
+| Interação | `browser_type` | `src/browser_mcp/tools.py:358` |
+| Interação | `browser_select_option` | `src/browser_mcp/tools.py:412` |
+| Interação | `browser_hover` | `src/browser_mcp/tools.py:445` |
+| Interação | `browser_press_key` | `src/browser_mcp/tools.py:526` |
+| Interação | `browser_upload_file` | `src/browser_mcp/tools.py:559` |
+| Interação | `browser_scroll` | `src/browser_mcp/tools.py:271` |
+| Interação | `browser_download` | `src/browser_mcp/tools.py:1292` |
+| Leitura | `browser_get_content` | `src/browser_mcp/tools.py:592` |
+| Leitura | `browser_get_url` | `src/browser_mcp/tools.py:980` |
+| Leitura | `browser_get_title` | `src/browser_mcp/tools.py:1001` |
+| Leitura | `browser_get_attributes` | `src/browser_mcp/tools.py:663` |
+| Leitura | `browser_extension_get_dom_snapshot` | `src/browser_mcp/tools.py:1143` |
+| Screenshot & Visual | `browser_screenshot` | `src/browser_mcp/tools.py:698` |
+| Screenshot & Visual | `browser_inject_indicator` | `src/browser_mcp/tools.py:1232` |
+| Screenshot & Visual | `browser_remove_indicator` | `src/browser_mcp/tools.py:1247` |
+| Screenshot & Visual | `browser_highlight_element` | `src/browser_mcp/tools.py:1262` |
+| Screenshot & Visual | `browser_set_security_level` | `src/browser_mcp/tools.py:1277` |
+| Network | `browser_network_start` | `src/browser_mcp/tools.py:734` |
+| Network | `browser_network_stop` | `src/browser_mcp/tools.py:755` |
+| Network | `browser_network_list` | `src/browser_mcp/tools.py:775` |
+| Network | `browser_network_clear` | `src/browser_mcp/tools.py:815` |
+| Network | `browser_get_network_log` | `src/browser_mcp/tools.py:835` |
+| Network | `browser_export_har` | `src/browser_mcp/tools.py:870` |
+| Network | `browser_extension_get_network_log` | `src/browser_mcp/tools.py:1107` |
+| Console | `browser_get_console_errors` | `src/browser_mcp/tools.py:1161` |
+| Sessão | `browser_manage_session` | `src/browser_mcp/tools.py:899` |
 | Sessão | `browser_connect_to_existing` | `src/browser_mcp/tools.py:127` |
 | Sessão | `browser_connect_to_extension` | `src/browser_mcp/tools.py:159` |
 | Sessão | `browser_disconnect_extension` | `src/browser_mcp/tools.py:191` |
-| Agente | `browser_agent_task` | `src/browser_mcp/tools.py:990` |
-| Agente | `browser_wait` | `src/browser_mcp/tools.py:906` |
-| Accessibility | `browser_accessibility_tree` | `src/browser_mcp/tools.py:450` |
-| JavaScript | `browser_execute_javascript` | `src/browser_mcp/tools.py:594` |
+| Agente | `browser_agent_task` | `src/browser_mcp/tools.py:1022` |
+| Agente | `browser_wait` | `src/browser_mcp/tools.py:938` |
+| Accessibility | `browser_accessibility_tree` | `src/browser_mcp/tools.py:488` |
+| JavaScript | `browser_execute_javascript` | `src/browser_mcp/tools.py:628` |
 
 Observações verificáveis:
 
-- Não há ferramenta MCP pública chamada `browser_scroll`; a extensão tem helper interno `scroll` em `src/browser_mcp/extension_bridge.py:162`, mas ele não é registrado em `tools.py`.
-- `browser_get_visible_text` e `browser_get_interactive_elements` existem como métodos auxiliares do BrowserManager (`src/browser_mcp/browser_manager.py:980`, `src/browser_mcp/browser_manager.py:1009`), mas não como ferramentas MCP públicas.
+- `browser_scroll` (`src/browser_mcp/tools.py:271`) e `browser_download` (`src/browser_mcp/tools.py:1292`) foram adicionadas depois da primeira versão do README; ambas são ferramentas MCP públicas registradas em `tools.py`.
+- `browser_get_visible_text` e `browser_get_interactive_elements` existem como métodos auxiliares do BrowserManager, mas não como ferramentas MCP públicas.
 - `browser_get_console_errors` requer modo extensão, porque chama `extension_get_console_errors` (`src/browser_mcp/browser_manager.py:1067`).
 
 ## 🔌 Integração com Hermes Agent
@@ -208,7 +210,7 @@ O `switch` de comandos da extensão tem **21 comandos** no código atual, não 2
 
 Estado verificado neste checkout:
 
-- **37 ferramentas MCP** em `src/browser_mcp/tools.py`.
+- **39 ferramentas MCP** em `src/browser_mcp/tools.py`.
 - **43 testes coletáveis** em `tests/` com `env -u PYTHONPATH -u PYTHONSTARTUP -u VIRTUAL_ENV .venv/bin/pytest --collect-only -q`.
 - **mypy configurado** em `pyproject.toml` com `disallow_untyped_defs = true`, mas a execução atual de `env -u PYTHONPATH -u PYTHONSTARTUP -u VIRTUAL_ENV .venv/bin/mypy src` reporta 43 erros. Portanto, não é correto afirmar “mypy strict: 0 errors” neste estado.
 - **ruff configurado** em `pyproject.toml`, mas `env -u PYTHONPATH -u PYTHONSTARTUP -u VIRTUAL_ENV .venv/bin/ruff check src tests` reporta 12 erros. Portanto, não é correto afirmar “ruff: 0 errors” neste estado.
