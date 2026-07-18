@@ -242,15 +242,14 @@ Fonte: `.github/workflows/ci.yml` (lido 2026-07-18).
   1. `lint` — `ruff check` + `ruff format --check`. O job `test` tem
      `needs: lint`, então **se o lint falhar, o test não roda**. O lint hoje
      passa limpo no escopo do CI.
-  2. `test` — `pytest tests/test_smoke.py tests/test_tools.py tests/test_agent.py -v`
-     (o "core") — a suíte inteira, já que hoje há só esses 3 arquivos.
+  2. `test` — instala o Chromium (`playwright install --with-deps chromium`) e
+     roda `pytest tests/test_tools.py tests/test_agent.py -v`. **`test_smoke.py`
+     fica FORA do gate de CI**: é E2E contra `httpbin.org` (serviço externo) e
+     retorna 503 de forma intermitente dos runners do GitHub — roda localmente,
+     não no CI.
 - **`mypy` NÃO roda no CI.** Está nas dev deps do `pyproject.toml`
   (`mypy>=1.8`) e há `[tool.mypy]` configurado, mas `grep mypy .github/workflows/ci.yml`
   retorna **0** ocorrências. Não trate type-check como gate — ele não é.
-- **Atenção:** o job `test` do CI **não roda `playwright install`** antes do
-  pytest. Os smokes/tools dependem de Chromium; se o runner não tiver o browser
-  do Playwright, essas camadas quebram no CI. Verifique isso antes de prometer
-  que o "core" passa no CI.
 
 ---
 

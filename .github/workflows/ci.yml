@@ -55,5 +55,7 @@ jobs:
       - name: Install Playwright browser
         run: playwright install --with-deps chromium
 
+      # test_smoke.py é E2E contra httpbin.org (serviço externo) e retorna 503
+      # de forma intermitente nos runners — roda localmente, não no gate de CI.
       - name: Run pytest (core)
-        run: pytest tests/test_smoke.py tests/test_tools.py tests/test_agent.py -v
+        run: pytest tests/test_tools.py tests/test_agent.py -v
