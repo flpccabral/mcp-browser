@@ -54,10 +54,10 @@ devolve conteúdo (aqui, `TextContent`).
 
 **Onde aparece.**
 - Transporte stdio e loop principal: `src/browser_mcp/server.py:77` (`stdio_server()`)
-  e `server.py:79` (`server.run(...)`).
+  e `server.py:77` (`server.run(...)`).
 - Handshake de listagem: `server.py:18-21` — `@server.list_tools()` retorna
   `app.get_tools()`.
-- Despacho de execução: `server.py:24-32` — `@server.call_tool()` recebe
+- Despacho de execução: `server.py:24-30` — `@server.call_tool()` recebe
   `name: str, arguments: dict` e roteia para `app.call_tool(name, arguments)`.
 - Registro real das tools: decorator `@app.tool(...)` em
   `src/browser_mcp/tools.py` (definição do `ToolRegistry` em `tools.py:19`;
@@ -66,7 +66,7 @@ devolve conteúdo (aqui, `TextContent`).
 
 **Consequência prática.** A "API" do servidor é o conjunto de schemas JSON
 declarados nos decorators — é isso que o modelo enxerga. Adicionar capacidade =
-registrar uma tool nova com schema. Erros viram texto: `server.py:31-32` embrulha
+registrar uma tool nova com schema. Erros viram texto: `server.py:29-30` embrulha
 qualquer exceção como `"ERROR: [Server] - ..."`, então o modelo nunca vê stack
 trace, só a string.
 
@@ -252,14 +252,14 @@ não uma página persistente. O Chrome pode **suspendê-lo** quando ocioso (tipi
   comentário `:130` diz explicitamente "Backoff mais curto para MV3 (service
   worker pode suspender)".
 - Do lado do servidor, cada cliente builtin tem timeout de leitura de frame de
-  60s (`websocket_server.py:345`); ping→pong mantém vivo (`background.js:177-180`,
-  `websocket_server.py:502-503`).
+  60s (`websocket_server.py:264`); ping→pong mantém vivo (`background.js:177-180`,
+  `websocket_server.py:271-276`).
 
 **Consequência prática.** A conexão da extensão é **intrinsecamente instável**:
 espere reconexões. Não assuma sessão WebSocket contínua; o `execute_command` do
-servidor tem timeout de 10s por padrão (`websocket_server.py:552`) e lança
+servidor tem timeout de 10s por padrão (`websocket_server.py:467`) e lança
 `TimeoutError` se a extensão estiver dormindo/reconectando
-(`websocket_server.py:566-569`). Ao depurar "comando não respondeu", cheque se o
+(`websocket_server.py:484`). Ao depurar "comando não respondeu", cheque se o
 service worker suspendeu (o alarme deveria trazê-lo de volta em ~18s).
 
 ---
@@ -332,13 +332,13 @@ Duas defesas: verificar a **origin** (`chrome-extension://...`) e um **token**
 compartilhado comparado de forma *timing-safe*.
 
 **Onde aparece.** `src/browser_mcp/websocket_server.py`:
-- Origin: no handshake, lê o header `Origin` (`:219`). Em modo restrito exige
+- Origin: no handshake, lê o header `Origin` (`:163`). Origin vazio é aceito; se
   origin não-vazia e `chrome-extension://` (`:221-233`); fora do restrito,
   rejeita qualquer origin presente que não seja `chrome-extension://`
   (`:234-239`). Isso bloqueia páginas web comuns (que enviariam
   `https://...`).
 - Token: gerado/persistido com permissão `0o600` em `~/.mcp_browser_token`
-  (`_load_or_create_token`, `:53-67`), via `secrets.token_urlsafe(32)` (`:63`).
+  (`_load_or_create_token`, `:40-53`), via `secrets.token_urlsafe(32)` (`:50`).
   Aceito por header `Authorization: Bearer`, subprotocolo `mcp-token.` ou query
   `?token=` (`:241-257`). A comparação usa **`hmac.compare_digest(provided,
   self._token)`** (`:259`).
@@ -352,7 +352,7 @@ atacante consegue adivinhar o token byte a byte (*timing attack*).
 fechando esse canal lateral.
 
 **Consequência prática.** Payload máximo de 64 MiB evita exaustão de memória
-(`websocket_server.py:49`, `:371-376`). Em modo restrito, o bind é forçado a
+(`websocket_server.py:36`, `:290-292`). O bind usa o host do construtor
 loopback `127.0.0.1` (`:75-82`) e o token é obrigatório com mensagem explícita
 (`:261-267`). Ao depurar "extensão não conecta (401/403)": 403 = origin errada;
 401 = token ausente/errado.

@@ -76,12 +76,12 @@ critério é: **sem novas regressões além dessa flakiness conhecida de rede**,
 | `_build_final_result` | `agent.py:580` | Monta o dict de resultado (fonte das categorias) |
 
 `llm_client.py` (101 linhas): `LLMClient.chat` (`:46`) e `_chat_anthropic` (`:69`).
-**NÃO há retry/backoff hoje** — só `response.raise_for_status()` em `:65` e `:95`.
+**Retry/backoff implementado** (2026-07-18) em `_request` (`llm_client.py:70`): até 5 tentativas com backoff exponencial + `Retry-After` para 429/5xx/timeout.
 Insumo direto da Fase 2.
 
 **Defeito de arquitetura relevante (não é seu escopo consertar, mas afeta o
 benchmark):** `LLMClient` NÃO é singleton. Há 2 instâncias: a de módulo em
-`llm_client.py:101` (importada por `server.py:11` e inicializada em `server.py:71`)
+`llm_client.py:146` (importada por `server.py:11` e inicializada em `server.py:67`)
 e uma separada criada em `tools.py:16`, que é a de fato usada por `browser_agent_task`.
 A que o server inicializa não é a que as tools usam. Documentado em
 `[[browser-mcp-contrato-de-arquitetura]]`. **Consequência para você:** o benchmark
@@ -194,7 +194,7 @@ PYTHONPATH=src .venv/bin/python \
   máximo **±1 tarefa** no total de sucessos.
   - **Se a diferença for >1 tarefa entre runs** → a linha de base é INSTÁVEL; não
     prossiga. Desvie para: (a) fixar `temperature` mais baixa no `LLMClient`
-    (`llm_client.py:23`, hoje `0.1` — CANDIDATA, não commite ainda); (b) subir
+    (`llm_client.py:31`, hoje `0.1` — CANDIDATA, não commite ainda); (b) subir
     `--task-timeout` se houver `harness_timeout` intermitente; (c) checar se
     `example_com` (rede) é a fonte da variância — rode `--offline` e compare.
   - **Se `categorias` for dominado por `llm_error`** → seu LLM não está respondendo
@@ -359,8 +359,8 @@ Nenhuma outra alteração no comportamento.
     `:580`; default `max_iterations=30` em `:87`.
   - `browser_agent_task` passa `max_iterations=50` (`tools.py:1050` schema, `:1074`
     assinatura) — divergência com o default do agente (documentar, não silenciar).
-  - `llm_client.py` = 101 linhas, SEM retry/backoff (só `raise_for_status` em `:65`,`:95`).
-  - `LLMClient` duplicado: `llm_client.py:101` (usado por `server.py:71`) vs
+  - `llm_client.py` = 146 linhas, COM retry/backoff em `_request` (`:70`); `raise_for_status` em `:84`.
+  - `LLMClient` duplicado: `llm_client.py:146` (usado por `server.py:71`) vs
     `tools.py:16` (usado pelas tools).
   - 43 testes coletados; SOTA externo browser-use 87.4%/200 tarefas.
 - **Como re-verificar rápido:** `grep -n "max_iterations" src/browser_mcp/agent.py

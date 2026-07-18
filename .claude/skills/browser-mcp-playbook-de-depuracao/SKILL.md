@@ -26,11 +26,11 @@ Runbook sintoma → causa → experimento para os modos de falha REAIS deste pro
 
 ## Pré-triagem universal: torne o stderr visível
 
-Todos os logs vão para **stderr** com prefixos `[SERVER]`, `[WS-SERVER]`, `[EXTENSION-BRIDGE]`, `[TOOLS]` (verificado em `server.py:68`, `websocket_server.py:118`, `extension_bridge.py:55`, `tools.py:98`). Rodando sob um cliente MCP, o stderr costuma ser engolido. Antes de qualquer triagem:
+Todos os logs vão para **stderr** com prefixos `[SERVER]`, `[WS-SERVER]`, `[EXTENSION-BRIDGE]`, `[TOOLS]` (verificado em `server.py:68`, `websocket_server.py:91`, `extension_bridge.py:55`, `tools.py:98`). Rodando sob um cliente MCP, o stderr costuma ser engolido. Antes de qualquer triagem:
 
 ```bash
 cd /caminho/do/repo/mcp_browser
-.venv/bin/python -m browser_mcp.server 2> /tmp/mcp_stderr.log &   # console script browser-mcp-server está quebrado (main async)
+.venv/bin/python -m browser_mcp.server 2> /tmp/mcp_stderr.log &   # ou: browser-mcp-server (console script)
 tail -f /tmp/mcp_stderr.log
 ```
 
@@ -77,14 +77,14 @@ browser_execute_javascript {"code": "document.querySelector('#alvo').dispatchEve
 
 ## 2. "Extensão não conecta"
 
-Triagem em cadeia — pare no primeiro elo quebrado. Handshake: `websocket_server.py:199-304`; reconexão da extensão: `extension/background.js:38-131`.
+Triagem em cadeia — pare no primeiro elo quebrado. Handshake: `websocket_server.py:145-215`; reconexão da extensão: `extension/background.js:38-131`.
 
 | # | Elo | Como verificar | Referência |
 |---|---|---|---|
-| 1 | WS server rodando na 8765? | `lsof -iTCP:8765 -sTCP:LISTEN` — log esperado: `[WS-SERVER] WebSocket server iniciado em ws://...` | `websocket_server.py:73` (porta default 8765), `websocket_server.py:118` |
-| 2 | Token confere? | Token do servidor: `cat ~/.mcp_browser_token`. Extensão lê `chrome.storage.local.mcpToken` e anexa `?token=` na URL. Mismatch → **HTTP 401** | `websocket_server.py:50,53-67,242-273`; `background.js:29-48` |
-| 3 | Origin é `chrome-extension://`? | Origin presente e diferente disso → **HTTP 403**. Em modo restrito, origin vazio também é 403 | `websocket_server.py:219-239` |
-| 4 | Payload > 64 MiB? | Log `[WS-SERVER] Payload muito grande (...), fechando conexão` — servidor fecha o frame | `websocket_server.py:49` (`MAX_PAYLOAD_SIZE = 64 * 1024 * 1024`), `:371-376` |
+| 1 | WS server rodando na 8765? | `lsof -iTCP:8765 -sTCP:LISTEN` — log esperado: `[WS-SERVER] WebSocket server iniciado em ws://...` | `websocket_server.py:73` (porta default 8765), `websocket_server.py:91` |
+| 2 | Token confere? | Token do servidor: `cat ~/.mcp_browser_token`. Extensão lê `chrome.storage.local.mcpToken` e anexa `?token=` na URL. Mismatch → **HTTP 401** | `websocket_server.py:37,40-53,171-190`; `background.js:29-48` |
+| 3 | Origin é `chrome-extension://`? | Origin presente e diferente disso → **HTTP 403** (origin vazio é aceito) | `websocket_server.py:163-165` |
+| 4 | Payload > 64 MiB? | Log `[WS-SERVER] Payload muito grande (...), fechando conexão` — servidor fecha o frame | `websocket_server.py:36` (`MAX_PAYLOAD_SIZE = 64 * 1024 * 1024`), `:290-292` |
 | 5 | Service worker MV3 dormiu? | Chrome mata o worker ocioso; a extensão usa `chrome.alarms` como keep-alive (`ws-keepalive` a cada 0.3 min reconecta se `!connected`; `keepalive` a cada 0.5 min). Inspecione em `chrome://extensions` → service worker → console | `background.js:134-143` e `:872-875` |
 | 6 | Reconexão em andamento? | Backoff: 2000 ms inicial, +500 ms por falha, teto 5000 ms — espere ~5 s antes de concluir que morreu | `background.js:16-17,125-131` |
 
@@ -110,7 +110,7 @@ EOF
 
 **História:** token + validação de origin entraram no commit P0 `cbc8e28` (FIX 1) — extensões antigas sem `mcpToken` em `chrome.storage.local` pararam de conectar "do nada" após o upgrade. Confira com `git show cbc8e28 --stat`.
 
-**Timeouts relacionados:** comando para a extensão espera resposta por 10 s no WS server (`websocket_server.py:552`) e o bridge usa default 15 s (`extension_bridge.py:97`); estouro vira `Timeout ao aguardar resposta da extensão para <tool>` (`websocket_server.py:566-569`). `RuntimeError: Nenhuma extensão Chrome conectada via WebSocket.` vem de `extension_bridge.py:115`.
+**Timeouts relacionados:** comando para a extensão espera resposta por 10 s no WS server (`websocket_server.py:467`) e o bridge usa default 15 s (`extension_bridge.py:97`); estouro vira `Timeout ao aguardar resposta da extensão para <tool>` (`websocket_server.py:484`). `RuntimeError: Nenhuma extensão Chrome conectada via WebSocket.` vem de `extension_bridge.py:115`.
 
 ## 3. "Timeout esperando elemento / dropdown vazio"
 
@@ -201,12 +201,12 @@ print(a._parse_response(resp))
 
 ## 6. "ERROR: [Server] - ..." genérico
 
-**Armadilha:** o handler MCP engole QUALQUER exceção de tool e devolve só `f"ERROR: [Server] - {str(e)}"` — sem tipo, sem traceback (`src/browser_mcp/server.py:29-32`). Um `KeyError` de dict e um crash do Playwright chegam idênticos ao cliente. (Erros que passam pelo wrapper das tools ganham formato melhor — `ERROR: [Tipo] - mensagem - sugestão`, `tools.py:78-93` — se você vê o formato curto `[Server]`, a exceção estourou FORA desse wrapper, ex.: argumento inexistente na assinatura da tool, `tools.py:72`.)
+**Armadilha:** o handler MCP engole QUALQUER exceção de tool e devolve só `f"ERROR: [Server] - {str(e)}"` — sem tipo, sem traceback (`src/browser_mcp/server.py:29-30`). Um `KeyError` de dict e um crash do Playwright chegam idênticos ao cliente. (Erros que passam pelo wrapper das tools ganham formato melhor — `ERROR: [Tipo] - mensagem - sugestão`, `tools.py:78-93` — se você vê o formato curto `[Server]`, a exceção estourou FORA desse wrapper, ex.: argumento inexistente na assinatura da tool, `tools.py:72`.)
 
 **Triagem:** rode com stderr visível (pré-triagem no topo) e reproduza a chamada — o traceback real aparece no stderr, junto com `[TOOLS] <nome> executado em X.XXXs` (`tools.py:96-98`) das tools que chegaram a executar.
 
 ```bash
-.venv/bin/python -m browser_mcp.server 2> /tmp/mcp_stderr.log &   # console script browser-mcp-server está quebrado (main async)
+.venv/bin/python -m browser_mcp.server 2> /tmp/mcp_stderr.log &   # ou: browser-mcp-server (console script)
 # reproduza a chamada da tool pelo cliente MCP, depois:
 tail -50 /tmp/mcp_stderr.log
 ```
@@ -216,7 +216,7 @@ tail -50 /tmp/mcp_stderr.log
 
 ## 7. "Startup falha silenciosamente"
 
-**Armadilha:** `main()` trata falha de inicialização do browser/LLM/WebSocket como AVISO e segue em frente: `except Exception as e: print(f"[SERVER] Aviso: Falha na inicialização opcional: {e}")` (`src/browser_mcp/server.py:69-75`). O servidor stdio sobe normalmente (`server.py:77-78`), o cliente MCP conecta, lista tools — e a primeira chamada real falha porque o browser nunca iniciou ou a porta 8765 estava ocupada.
+**Armadilha:** `main()` trata falha de inicialização do browser/LLM/WebSocket como AVISO e segue em frente: `except Exception as e: print(f"[SERVER] Aviso: Falha na inicialização opcional: {e}")` (`src/browser_mcp/server.py:65-73`). O servidor stdio sobe normalmente (`server.py:75-77`), o cliente MCP conecta, lista tools — e a primeira chamada real falha porque o browser nunca iniciou ou a porta 8765 estava ocupada.
 
 **Triagem:** procure a linha de sucesso no stderr; a ausência dela + presença do "Aviso" é o diagnóstico.
 

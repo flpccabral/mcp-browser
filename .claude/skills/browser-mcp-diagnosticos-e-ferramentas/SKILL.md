@@ -155,7 +155,7 @@ Conecta em `ws://localhost:8765`, envia `{"tool": ..., "params": ...}` e imprime
 
 **Limitações verificadas (leia antes de usar):**
 
-- **Não faz handshake de token.** Ele só abre `ws://localhost:8765` e manda o comando (`ws_client.py:13`). O `WebSocketServer` real autentica por token (subprotocolo `mcp-token.<token>` ou `?token=`, `websocket_server.py:249-257`) — então este cliente **pode ser rejeitado** dependendo de como o servidor foi iniciado. É um utilitário de bancada, não um cliente de produção.
+- **Não faz handshake de token.** Ele só abre `ws://localhost:8765` e manda o comando (`ws_client.py:13`). O `WebSocketServer` real autentica por token (subprotocolo `mcp-token.<token>` ou `?token=`, `websocket_server.py:171-190`) — então este cliente **pode ser rejeitado** dependendo de como o servidor foi iniciado. É um utilitário de bancada, não um cliente de produção.
 - **Requer a extensão já conectada** ao servidor standalone (`websocket_server_standalone.py`), senão não há quem responda ao comando.
 - **Requer o pacote `websockets`** instalado; sem ele retorna `{"error": "websockets library not available"}` (`ws_client.py:18-20`) — o "fallback" prometido no comentário não existe.
 - Timeout fixo de 10s por comando (`ws_client.py:9`).
@@ -171,13 +171,13 @@ Todo log deste projeto vai para **stderr**, com prefixos por componente:
 | Prefixo | Componente | Ex. de origem |
 |---|---|---|
 | `[SERVER]` | servidor MCP | `server.py` |
-| `[WS-SERVER]` | WebSocket server | `websocket_server.py:62` |
+| `[WS-SERVER]` | WebSocket server | `websocket_server.py:53` |
 | `[EXTENSION-BRIDGE]` | ponte da extensão | `extension_bridge.py:55` |
 | `[TOOLS]` | timing de cada tool | `tools.py` (`_log_call`, imprime `... executado em Ns`) |
 
 Rodando sob um cliente MCP, o stderr costuma ser engolido — se estiver depurando, redirecione para arquivo (veja `browser-mcp-executar-e-operar`). O `[TOOLS] <nome> executado em <N>s` é sua medição de latência por chamada, emitido mesmo em erro (o `_log_call` roda no `except`).
 
-**Token:** o WebSocket server lê/gera o token em `~/.mcp_browser_token` (`websocket_server.py:50`). Se `ws_client.py` ou a extensão forem rejeitados, confira esse arquivo. A validação do handshake (token via `hmac.compare_digest` + origin `chrome-extension://`) está em `websocket_server.py`; a teoria do handshake está em [[browser-automacao-referencia]].
+**Token:** o WebSocket server lê/gera o token em `~/.mcp_browser_token` (`websocket_server.py:37`). Se `ws_client.py` ou a extensão forem rejeitados, confira esse arquivo. A validação do handshake (token via `hmac.compare_digest` + origin `chrome-extension://`) está em `websocket_server.py`; a teoria do handshake está em [[browser-automacao-referencia]].
 
 ---
 
@@ -205,7 +205,7 @@ Faz **parsing estático (AST)** de `src/browser_mcp/tools.py` — **não importa
 Imprime, para cada variável que o **código realmente lê**, o valor efetivo no ambiente atual (ou o default), com a origem `file:line`. Depois lista os nomes que o `.env.example` documenta mas o código ignora. Mascara `LLM_API_KEY`. Dois fatos que ele torna óbvios:
 
 - **`.env.example` está ERRADO:** documenta `HEADLESS`, `DEFAULT_TIMEOUT`, `PLAYWRIGHT_BROWSER`, `USER_AGENT` — mas o código lê `BROWSER_HEADLESS` (`browser_manager.py:36`), `BROWSER_TIMEOUT` (`:39`), etc. `PLAYWRIGHT_BROWSER` e `USER_AGENT` **não são lidos em lugar nenhum**.
-- **`load_dotenv` nunca é chamado** (grep em `src/` = zero). Logo um arquivo `.env` **não é carregado automaticamente**; as variáveis só valem se estiverem exportadas no ambiente do processo (ex.: `mcpServers.env` do cliente, ou `export` no shell). O script confirma isso na última linha.
+- **`load_dotenv()` é chamado** em `browser_mcp/__init__.py` (desde 2026-07-18), antes de qualquer submódulo ler `os.getenv`. Logo um `.env` na raiz do repo **é** carregado automaticamente. Variáveis já exportadas no ambiente vencem o `.env` (override=False).
 
 O catálogo completo com defaults e efeitos está em `browser-mcp-config-e-flags`; aqui o script só mostra o estado *efetivo*.
 

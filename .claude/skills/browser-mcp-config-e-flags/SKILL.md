@@ -62,10 +62,10 @@ Todas verificadas no código em 2026-07-12.
 | `ENABLE_VISUAL_INDICATOR` | `true` (truthy booleano) | `browser_manager.py:41` | Injeta overlay visual após navegação Playwright (`browser_manager.py:585`) | `false` se o overlay interferir em screenshots/scraping |
 | `STEALTH_MODE` | `true` (truthy booleano) | `browser_manager.py:42` | Injeta script anti-detecção e user-agent aleatório do pool `_USER_AGENTS` (`browser_manager.py:45-49`; usos em `:138`, `:153`, `:163`) | `false` para depurar diferenças de fingerprint |
 | `BROWSER_MCP_DOWNLOAD_DIR` | `<tempdir>/browser_mcp_downloads` | `browser_manager.py:910-913` (dentro de `download()`) | Diretório de destino de `browser_download` | Persistir downloads fora do temp |
-| `LLM_PROVIDER` | `deepseek` | `src/browser_mcp/llm_client.py:18` | Seleciona provedor: `deepseek`, `openai`, `anthropic`, `ollama` (outros caem no fallback OpenAI) | Trocar de provedor do agente |
-| `LLM_API_KEY` | `""` (vazio) | `llm_client.py:19` | Bearer token enviado ao provedor | Obrigatória para qualquer provedor pago |
-| `LLM_MODEL` | por provedor: `deepseek-chat` / `gpt-4o-mini` / `claude-sonnet-4-20250514` / `llama3.1`; fallback `gpt-4o-mini` | `llm_client.py:20` (defaults em `:25-32`) | Modelo do chat do agente | Trocar modelo |
-| `LLM_BASE_URL` | por provedor: `https://api.deepseek.com/v1` / `https://api.openai.com/v1` / `http://localhost:11434/v1`; fallback OpenAI | `llm_client.py:21` (defaults em `:34-40`) | Endpoint OpenAI-compatible | Proxies, gateways, endpoints self-hosted |
+| `LLM_PROVIDER` | `deepseek` | `src/browser_mcp/llm_client.py:26` | Seleciona provedor: `deepseek`, `openai`, `anthropic`, `ollama` (outros caem no fallback OpenAI) | Trocar de provedor do agente |
+| `LLM_API_KEY` | `""` (vazio) | `llm_client.py:27` | Bearer token enviado ao provedor | Obrigatória para qualquer provedor pago |
+| `LLM_MODEL` | por provedor: `deepseek-chat` / `gpt-4o-mini` / `claude-sonnet-4-20250514` / `llama3.1`; fallback `gpt-4o-mini` | `llm_client.py:28` (defaults em `:33-40`) | Modelo do chat do agente | Trocar modelo |
+| `LLM_BASE_URL` | por provedor: `https://api.deepseek.com/v1` / `https://api.openai.com/v1` / `http://localhost:11434/v1`; fallback OpenAI | `llm_client.py:29` (defaults em `:42-48`) | Endpoint OpenAI-compatible | Proxies, gateways, endpoints self-hosted |
 
 Guards de parsing: `BROWSER_VIEWPORT_*` e `BROWSER_TIMEOUT` usam `int(...)` sem try — valor não numérico derruba o import do módulo com `ValueError`. Não há validação de range.
 
@@ -80,9 +80,9 @@ Verificado em 2026-07-12: `.env.example` documenta 4 variáveis que **o código 
 | `PLAYWRIGHT_BROWSER` (`.env.example:17`) | Não lida. O navegador é Chromium hardcoded — não existe eixo de config para firefox/webkit |
 | `USER_AGENT` (`.env.example:20`) | Não lida. O UA vem do pool hardcoded `_USER_AGENTS` (`browser_manager.py:45-49`), sorteado só quando `STEALTH_MODE` ativo (`:155`) |
 
-Além disso `.env.example` sugere `LLM_PROVIDER=openai` como exemplo, enquanto o default real do código é `deepseek` (`llm_client.py:18`), e omite `LLM_BASE_URL`, todas as `BROWSER_*`, `EXTENSION_WS_URL`, `ENABLE_VISUAL_INDICATOR`, `STEALTH_MODE` e `BROWSER_MCP_DOWNLOAD_DIR`.
+Além disso `.env.example` sugere `LLM_PROVIDER=openai` como exemplo, enquanto o default real do código é `deepseek` (`llm_client.py:26`), e omite `LLM_BASE_URL`, todas as `BROWSER_*`, `EXTENSION_WS_URL`, `ENABLE_VISUAL_INDICATOR`, `STEALTH_MODE` e `BROWSER_MCP_DOWNLOAD_DIR`.
 
-**Corrigir `.env.example` é pendência aberta** (e lembre: mesmo corrigido, `.env` não é auto-carregado — ver aviso acima). Ao corrigir, use os nomes da tabela mestra.
+O `.env.example` foi corrigido em 2026-07-18 (nomes reais + defaults). O `.env` **é** carregado automaticamente desde então (`load_dotenv()` em `browser_mcp/__init__.py`).
 
 ## Constantes hardcoded que agem como flags
 
@@ -90,9 +90,9 @@ Não há env var para nenhuma destas — mudar exige editar código.
 
 | Constante | Valor (2026-07-17) | Onde | Efeito |
 |---|---|---|---|
-| `TOKEN_PATH` | `~/.mcp_browser_token` | `src/browser_mcp/websocket_server.py:50` | Arquivo do token de autenticação do WebSocket; criado com `secrets.token_urlsafe(32)` se ausente (`websocket_server.py:53-67`) |
-| Permissões do token | `0o600` aplicado na criação/leitura (`websocket_server.py:59` e `:65`) | — | Guard de segurança de arquivo |
-| `MAX_PAYLOAD_SIZE` | `64 * 1024 * 1024` (64 MiB) | `websocket_server.py:49` (checado no frame loop) | Anti-exaustão de memória no WS |
+| `TOKEN_PATH` | `~/.mcp_browser_token` | `src/browser_mcp/websocket_server.py:37` | Arquivo do token de autenticação do WebSocket; criado com `secrets.token_urlsafe(32)` se ausente (`websocket_server.py:40-53`) |
+| Permissões do token | `0o600` aplicado na criação/leitura (`websocket_server.py:46` e `:52`) | — | Guard de segurança de arquivo |
+| `MAX_PAYLOAD_SIZE` | `64 * 1024 * 1024` (64 MiB) | `websocket_server.py:36` (checado no frame loop) | Anti-exaustão de memória no WS |
 | Porta / host do WS | `port=8765`, `host="localhost"` — defaults do construtor `WebSocketServer.__init__` (`websocket_server.py:73`) | — | Endereço do bridge WebSocket |
 
 ## Config da extensão Chrome
@@ -102,12 +102,12 @@ Verificado em `extension/background.js` e `extension/popup.js` (2026-07-12):
 - **URL do WS**: hardcoded em `STATE.wsUrl = 'ws://localhost:8765'` (`extension/background.js:14`). **Não** há UI nem storage para mudar — `EXTENSION_WS_URL` do lado Python não afeta a extensão. Se mudar a porta, mude nos três lugares: `WebSocketServer(port=...)`, `EXTENSION_WS_URL` e `background.js:14`.
 - **Token**: lido de `chrome.storage.local`, chave `mcpToken` (`background.js:30-31`, `getAuthToken`). Sem token a extensão não conecta e loga "Token ausente" (`background.js:42-46`). O token vai na query string: `${wsUrl}?token=...` (`background.js:48`).
 - **Nada no repo grava `mcpToken`** — `grep -n "storage.local.set" extension/*.js` retorna zero (2026-07-12). O popup (`extension/popup.js`) só exibe status/contadores e botões record/export/reset/reconnect; não tem campo de token, apesar do log sugerir "configure em Options/Popup". Setup manual: abra o console do service worker da extensão e rode `chrome.storage.local.set({mcpToken: '<conteúdo de ~/.mcp_browser_token>'})`.
-- O servidor envia `{"type": "config", "wsUrl": ...}` à extensão após conectar (`websocket_server.py:442`) — informativo; a extensão não persiste isso.
+- O servidor envia `{"type": "config", "wsUrl": ...}` à extensão após conectar (`websocket_server.py:358`) — informativo; a extensão não persiste isso.
 
 ## Config do agente (defaults em código, sem env vars)
 
 - `BrowserAgent.__init__` (`src/browser_mcp/agent.py:83-97`): `max_iterations=30`, `max_consecutive_errors=3`, `screenshot_on_action=False`, `output_dir="/tmp/browser_agent"`.
-- `LLMClient.__init__` (`llm_client.py:15-16`): `max_tokens=4096`, `temperature=0.1` — não configuráveis por env.
+- `LLMClient.__init__` (`llm_client.py:23-24`): `max_tokens=4096`, `temperature=0.1` — não configuráveis por env.
 - A tool MCP `browser_agent_task` **sobrepõe** os defaults do agente: `max_iterations=50` e `output_dir="./agent_output"` (`src/browser_mcp/tools.py:1048-1077`). Ou seja: o default efetivo via MCP é 50 iterações, não 30.
 
 ## Produção vs experimental
@@ -119,7 +119,7 @@ Verificado em `extension/background.js` e `extension/popup.js` (2026-07-12):
 
 ## Checklist: adicionando um novo eixo de config
 
-1. **Módulo certo**: leia a env no módulo dono do comportamento, no topo, com default explícito — padrão existente: `os.getenv("NOME", "default")` em `browser_manager.py:36-42` (browser), `llm_client.py:18-21` (LLM). Booleana? Use o truthy booleano do repo, não `bool(os.getenv(...))`.
+1. **Módulo certo**: leia a env no módulo dono do comportamento, no topo, com default explícito — padrão existente: `os.getenv("NOME", "default")` em `browser_manager.py:36-42` (browser), `llm_client.py:26-21` (LLM). Booleana? Use o truthy booleano do repo, não `bool(os.getenv(...))`.
 2. **Prefixo**: `BROWSER_*` para comportamento do navegador, `LLM_*` para o provedor. Evite nomes genéricos (`HEADLESS`, `DEFAULT_TIMEOUT`) — foi exatamente esse o erro do `.env.example`.
 3. **README**: adicione à tabela de env vars (`README.md:42-51`) no estilo existente: nome | default | efeito com `file:line`.
 4. **`.env.example`**: adicione com o nome CORRETO e o default real comentado (e aproveite para pagar a pendência das 4 vars fantasma).
