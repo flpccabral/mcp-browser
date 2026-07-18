@@ -50,10 +50,10 @@ Esta skill é o mapa conceitual. As irmãs acima são os runbooks operacionais.
 Um servidor MCP (Model Context Protocol — protocolo pelo qual um LLM chama
 ferramentas via stdio) de automação de browser, em Python (>=3.11), pacote
 `browser-mcp-server` 0.1.0. Dependências: `mcp`, `playwright`, `httpx`,
-`python-dotenv`, `websockets` (`pyproject.toml:39-45`). Suíte: 85 testes
-passando em ~56s (verificado 2026-07-13; requer `playwright install chromium`).
+`python-dotenv`, `websockets` (`pyproject.toml:39-45`). Suíte: 43 testes
+(verificado 2026-07-18; a maioria requer `playwright install chromium`).
 
-Mapa de módulos em `src/browser_mcp/` (linhas verificadas 2026-07-13):
+Mapa de módulos em `src/browser_mcp/` (linhas verificadas 2026-07-18):
 
 | Módulo | Linhas | Papel |
 |---|---|---|
@@ -193,7 +193,7 @@ Consequência: com DUAS extensões conectadas (ex.: duas janelas de Chrome com a
 extensão), ambas executam o mesmo comando; a primeira `response` com o `id`
 vence o Future e a segunda é descartada — mas o efeito colateral (clique,
 navegação) aconteceu duas vezes. Não há identificação de cliente-alvo no
-protocolo. Ao mexer aqui, respeite o WIP não commitado no arquivo.
+protocolo.
 
 ## Invariantes — o que qualquer mudança deve preservar
 

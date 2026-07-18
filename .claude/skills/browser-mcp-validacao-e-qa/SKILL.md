@@ -208,16 +208,17 @@ O CI **bloqueia** em dois passos de lint. Rode-os localmente antes de qualquer p
 ./.venv/bin/ruff format --check src/browser_mcp tests
 ```
 
-### Números medidos HOJE (2026-07-17, com o WIP presente)
+### Números medidos (2026-07-18)
 
 | Comando | Resultado | Exit |
 |---|---|---|
-| `ruff check src/browser_mcp tests` | **17 errors** (14 auto-fixáveis com `--fix`) | 1 (falha) |
-| `ruff format --check src/browser_mcp tests` | **14 arquivos seriam reformatados, 3 já formatados** | 1 (falha) |
+| `ruff check src/browser_mcp tests` | **limpo** | 0 |
+| `ruff format --check src/browser_mcp tests` | **tudo formatado** | 0 |
 
-> Baseline anterior em HEAD limpo era ~19 erros / 17 arquivos a reformatar; o
-> WIP mudou a contagem. **Ambos os gates falham hoje** — ver a dívida histórica
-> de lint em [[browser-mcp-arqueologia-de-falhas]].
+> A dívida histórica de lint foi quitada num commit dedicado. `ruff check .` na
+> raiz ainda acusa erros em scripts fora do escopo do CI (`manage_mcp_browser.py`,
+> scripts de skills) — não bloqueiam o gate. Contexto histórico em
+> [[browser-mcp-arqueologia-de-falhas]].
 
 **Disciplina inegociável:** **não misture correção de lint com mudança
 funcional no mesmo commit.** Um commit "corrige lint" não deve alterar
@@ -274,8 +275,6 @@ números antes de rodar): [[browser-mcp-metodologia-e-prova]].
 - **Política de merge, gates obrigatórios, convenções de commit/branch,
   publicação** → [[browser-mcp-controle-de-mudancas]] (esta skill não define
   política; só operacionaliza a evidência).
-- **Semântica dos 6 controles do modo restrito, aprovar script, adicionar host** →
-  [[browser-mcp-perfil-restrito]].
 - **Melhorar de fato a confiabilidade do agente / construir benchmark de sucesso** →
   [[browser-mcp-campanha-confiabilidade-do-agente]].
 - **Algo QUEBRA em runtime (click não faz nada, extensão não conecta, agente em loop)** →

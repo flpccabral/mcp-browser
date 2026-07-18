@@ -178,7 +178,7 @@ Todo log deste projeto vai para **stderr**, com prefixos por componente:
 
 Rodando sob um cliente MCP, o stderr costuma ser engolido — se estiver depurando, redirecione para arquivo (veja `browser-mcp-executar-e-operar`). O `[TOOLS] <nome> executado em <N>s` é sua medição de latência por chamada, emitido mesmo em erro (o `_log_call` roda no `except`).
 
-**Token:** o WebSocket server lê/gera o token em `~/.mcp_browser_token` (`websocket_server.py:50`). Se `ws_client.py` ou a extensão forem rejeitados, confira esse arquivo. Bind é forçado para loopback `127.0.0.1` (`websocket_server.py:76`); detalhes de segurança em `browser-mcp-perfil-restrito`.
+**Token:** o WebSocket server lê/gera o token em `~/.mcp_browser_token` (`websocket_server.py:50`). Se `ws_client.py` ou a extensão forem rejeitados, confira esse arquivo. A validação do handshake (token via `hmac.compare_digest` + origin `chrome-extension://`) está em `websocket_server.py`; a teoria do handshake está em [[browser-automacao-referencia]].
 
 ---
 

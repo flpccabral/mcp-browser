@@ -276,13 +276,12 @@ Uma mudança CANDIDATA vira ADOTADA somente se:
    limiar conforme o N de tarefas; o princípio é: melhora reprodutível, não sorte de
    1 run.) Para Fase 1, o critério alternativo é `total_parse_incidents` caindo sem
    queda de sucesso.
-2. **Sem NOVAS regressões nos 85 testes:** `.venv/bin/python -m pytest tests/ -q`.
-   Atenção: hoje 2 testes já falham por WIP intencional (allowlists do perfil
-   restrito) e alguns são flaky por timeout de rede — o critério é não introduzir
-   falha ALÉM dessa dívida declarada, não "85 verdes".
+2. **Sem NOVAS regressões na suíte:** `.venv/bin/python -m pytest tests/ -q`.
+   Atenção: alguns smokes são flaky por timeout de rede (httpbin/networkidle) —
+   o critério é não introduzir falha ALÉM dessa flakiness conhecida, não
+   "tudo verde cegamente".
 3. **Lint/format:** `ruff check` e `ruff format --check` conforme
-   `[[browser-mcp-controle-de-mudancas]]` (atenção à dívida de lint pré-existente
-   documentada lá — não introduza NOVOS erros).
+   `[[browser-mcp-controle-de-mudancas]]`.
 4. **Gate de mudança:** classifique como "agent change" e siga
    `[[browser-mcp-controle-de-mudancas]]`. Registre baseline e pós-mudança no PR.
 
@@ -352,7 +351,7 @@ Nenhuma outra alteração no comportamento.
   - `llm_client.py` = 101 linhas, SEM retry/backoff (só `raise_for_status` em `:65`,`:95`).
   - `LLMClient` duplicado: `llm_client.py:101` (usado por `server.py:71`) vs
     `tools.py:16` (usado pelas tools).
-  - 85 testes coletados; SOTA externo browser-use 87.4%/200 tarefas.
+  - 43 testes coletados; SOTA externo browser-use 87.4%/200 tarefas.
 - **Como re-verificar rápido:** `grep -n "max_iterations" src/browser_mcp/agent.py
   src/browser_mcp/tools.py`; `grep -n "retry\|backoff" src/browser_mcp/llm_client.py`;
   `.venv/bin/python -m pytest tests/ --collect-only -q | tail -1`.

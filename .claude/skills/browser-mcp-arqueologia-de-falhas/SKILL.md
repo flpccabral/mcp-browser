@@ -23,8 +23,7 @@ Regras de leitura:
 | 4 | Descoberta isTrusted (eventos sintéticos) | ≤2026-07-10 | **cercado** |
 | 5 | Commit P0 `cbc8e28` — os 4 fixes | 2026-07-10 | resolvido |
 | 6 | Incidente da chave privada `extension.pem` | 2026-07-12 | **aberto** (regenerar chave) |
-| 7 | Estado do lint | 2026-07-12 | aberto |
-| 8 | Plano de fases fantasma (Phase 7/8) | 2026-07-12 | aberto (lacuna de doc) |
+| 7 | Estado do lint | 2026-07-12 | resolvido (dívida quitada; escopo do CI limpo) |
 
 ---
 
@@ -191,23 +190,21 @@ Note a assimetria proposital: `extension.crx` aparece no diff de `ddf9bc1` (foi 
 
 ---
 
-## 7. Estado do lint — dívida aberta, não mistério (2026-07-12)
+## 7. Estado do lint — dívida quitada (2026-07-18)
 
-**Sintoma:** `ruff check` falha e `ruff format --check` reporta divergências **em código já commitado**. Não é culpa do seu WIP.
+**Sintoma histórico:** por um período, `ruff check` e `ruff format --check` falhavam **em código já commitado** — dívida acumulada porque o CI só dispara em push/PR para `main`/`master` (`.github/workflows/ci.yml`, gatilhos nas linhas 4-7) e branches de feature não têm gate.
 
-**Causa raiz:** O CI só dispara em push/PR para `main`/`master` (`.github/workflows/ci.yml`, gatilhos nas linhas 4-7). Branches de feature acumulam lint sem gate.
-
-**Medição em 2026-07-12 (re-verificada 2026-07-17), HEAD `ddf9bc1` (WIP fora):** `ruff check .` → **19 erros** (16 auto-corrigíveis); `ruff format --check .` → **17 arquivos** a reformatar. **Reconciliação de escopo:** o CI usa `ruff check src/browser_mcp tests` e vê **17 erros** (escopo restrito); `ruff check .` vê **19** porque inclui scripts da raiz (ex.: `manage_mcp_browser.py`) que o CI ignora — não é contradição, é escopo. Os números derivam com o tempo; meça, não cite de memória. **Lar canônico do estado de lint/CI:** [[browser-mcp-controle-de-mudancas]] §3.
+**Resolução:** a dívida foi quitada num commit dedicado (`ruff check --fix` + `ruff format`, sem mudança funcional). Hoje `ruff check src/browser_mcp tests` e `ruff format --check src/browser_mcp tests` (o escopo do CI) passam limpos. `ruff check .` na raiz ainda acusa erros em scripts fora do escopo do CI (`manage_mcp_browser.py`, scripts de skills) — não bloqueiam o CI.
 
 **Evidência (re-meça sempre):**
 
 ```bash
-uvx ruff check .            # em cima do commit, sem WIP: git stash antes se necessário
-uvx ruff format --check .
+.venv/bin/ruff check src/browser_mcp tests
+.venv/bin/ruff format --check src/browser_mcp tests
 grep -n -A4 "^on:" .github/workflows/ci.yml
 ```
 
-**Status: ABERTO — dívida conhecida.** Não trate erro de ruff pré-existente como regressão sua; não "conserte de passagem" dentro de um PR de feature sem combinar (infla o diff). Ver skill [[browser-mcp-controle-de-mudancas]].
+**Status: RESOLVIDO** no escopo do CI. **Lar canônico do estado de lint/CI:** [[browser-mcp-controle-de-mudancas]] §3.
 
 ---
 
@@ -225,9 +222,11 @@ grep -n -A4 "^on:" .github/workflows/ci.yml
 
 ## Proveniência e manutenção
 
-**Fontes desta crônica** (todas verificadas em 2026-07-12, pós filter-repo):
+**Fontes desta crônica** (verificadas pós filter-repo de 2026-07-12):
 
-- Histórico git: `cbc8e28` (raiz, P0 fixes) → `bb2fd1c` (README) → `efa0df5` (scroll+download) → `4c534b3` (CI Phase 8) → `ddf9bc1` (limpeza/pem).
+- Histórico git: o commit raiz é `cbc8e28` (os 4 P0 fixes); o incidente da
+  chave `.pem` foi tratado em `ddf9bc1`. Para o histórico completo e atual, rode
+  `git log --oneline` — a lista cresce a cada mudança.
 - Docs históricos recuperáveis apenas via `git show cbc8e28:<arquivo>`: `relatorio_ieducar.md`, `aprendizado_webbridge.md`, `analise_extensao_necessaria.md`, `investigacao_indicadores_visuais.md`.
 - Código vivo: `src/browser_mcp/agent.py`, `websocket_server.py`, `browser_manager.py`, `visual_indicator.py`, `extension_bridge.py`, `extension/background.js`, `.github/workflows/ci.yml`, `.gitignore`.
 

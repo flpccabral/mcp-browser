@@ -67,7 +67,7 @@ aplique). Requisitos são cumulativos com a linha "Todas".
 cd /caminho/do/repo
 .venv/bin/ruff check src/browser_mcp tests
 .venv/bin/ruff format --check src/browser_mcp tests
-.venv/bin/pytest tests/            # 85 testes coletados em 2026-07-12; ~1 min; requer: playwright install chromium
+.venv/bin/pytest tests/            # 43 testes coletados em 2026-07-18; requer: playwright install chromium
 ```
 
 Se qualquer um falhar, o push está bloqueado por convenção — mesmo que o CI
@@ -266,5 +266,5 @@ grep -n '^version' pyproject.toml; grep -n '__version__' src/browser_mcp/__init_
 ```
 
 Fatos que expiram rápido: contagens (tools, testes, erros de ruff/mypy),
-estado da dívida de lint, rótulo "Phase 7/8". Ao quitar a dívida de lint ou
-corrigir o README, atualize as seções 3 e 4 desta skill no mesmo PR.
+estado da dívida de lint. Ao corrigir o README ou mexer no lint, atualize as
+seções 3 e 4 desta skill no mesmo PR.

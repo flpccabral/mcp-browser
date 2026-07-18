@@ -25,7 +25,6 @@ PR/doc.
 
 - **Setup do ambiente/venv/instalação** → [[browser-mcp-build-e-ambiente]].
 - **Como iniciar/operar o servidor no dia a dia** → [[browser-mcp-executar-e-operar]].
-- **Semântica de segurança das allowlists do modo restrito** (por que HTTPS-only, por que hash de script, modelo de ameaça) → [[browser-mcp-perfil-restrito]]. Aqui só catalogamos ONDE elas moram e seus valores.
 - **Depurar comportamento errado em runtime** → [[browser-mcp-playbook-de-depuracao]].
 - **Arquitetura geral / contratos entre módulos** → [[browser-mcp-contrato-de-arquitetura]].
 - **Processo de mudança/commits** → [[browser-mcp-controle-de-mudancas]].
